@@ -85,53 +85,16 @@ function buildOrderSteps(order: typeof INITIAL_ORDERS[number]): ProgressStep[] {
   return steps;
 }
 
-// --- MOCK DATA ---
-const STAFF = [
-  { name: 'Chị Lan', role: 'Thợ thêu chính', phone: '0901 234 567', avatar: 'CL', color: 'bg-emerald-100 text-emerald-700' },
-  { name: 'Anh Đức', role: 'Thợ thêu', phone: '0912 345 678', avatar: 'AĐ', color: 'bg-sky-100 text-sky-700' },
-  { name: 'Chị Mai', role: 'QC / Đóng gói', phone: '0923 456 789', avatar: 'CM', color: 'bg-amber-100 text-amber-700' },
-];
+// --- DATA (2026-09-20: đã clear demo, đọc thực tế từ Supabase) ---
+// STAFF trước là mock; giờ đọc từ profiles.role_key='staff' (migration 011).
+type StaffMember = { name: string; role: string; phone: string; avatar: string; color: string };
+const STAFF: StaffMember[] = [];
 
-const INITIAL_ORDERS = [
-  // === CHỜ XỬ LÝ === (chờ admin duyệt/phân công)
-  { id: 'SC-0042', status: 'pending', color: 'gray', name: 'Khánh Huyền', price: '700.000đ', paymentMethod: 'COD', time: '2 phút trước', items: 'Túi Tote Hoa Cúc (x2)', avatar: 'KH', assignee: null as typeof STAFF[number] | null, createdAt: '2026-08-30' },
-  { id: 'SC-0043', status: 'pending', color: 'gray', name: 'An Nguyễn', price: '250.000đ', paymentMethod: 'MOMO', time: '1 giờ trước', items: 'Mũ Bucket Custom', avatar: 'AN', urgent: true, assignee: null as typeof STAFF[number] | null, createdAt: '2026-08-30' },
-  { id: 'SC-0044', status: 'pending', color: 'gray', name: 'Trần Thảo Vy', price: '890.000đ', paymentMethod: 'VNPAY', time: '20 phút trước', items: 'Tranh thêu hoa sen', avatar: 'TV', assignee: null as typeof STAFF[number] | null, hasCustomDesign: true, createdAt: '2026-08-30' },
+// Kanban orders — startup empty, fetchOrders() sẽ nạp từ bảng `orders`
+const INITIAL_ORDERS: any[] = [];
 
-  // === ĐANG SẢN XUẤT === (thợ đang thêu)
-  { id: 'SC-0038', status: 'producing', color: 'blue', name: 'Thảo Lê', price: '1.200.000đ', paymentMethod: 'VNPAY', time: 'Hôm qua', items: 'Vỏ gối Linen (x5)', avatar: 'TL', progress: 60, machine: 'Máy #02', assignee: STAFF[0], createdAt: '2026-08-29' },
-  { id: 'SC-0039', status: 'producing', color: 'blue', name: 'Ngọc Hà', price: '520.000đ', paymentMethod: 'MOMO', time: '2 ngày trước', items: 'Khăn Thêu Chữ Nghệ Thuật', avatar: 'NH', progress: 30, machine: 'Bàn thêu tay', assignee: STAFF[1], createdAt: '2026-08-28' },
-
-  // === TẠM DỪNG === (có vấn đề)
-  { id: 'SC-0040', status: 'issue', color: 'purple', name: 'Bảo Trần', price: '350.000đ', paymentMethod: 'COD', time: '2 ngày trước', items: 'Túi Canvas Custom', avatar: 'BT', note: 'Hết chỉ đỏ mã #42R', assignee: STAFF[1], createdAt: '2026-08-28' },
-
-  // === KIỂM TRA QC === (đã thêu xong, chờ QC)
-  { id: 'SC-0037', status: 'qc', color: 'green', name: 'Minh Đức', price: '450.000đ', paymentMethod: 'VNPAY', time: '3 giờ trước', items: 'Áo Phông Thêu Logo (x2)', avatar: 'MĐ', assignee: STAFF[2], qcStep: 'Kiểm đường chỉ', createdAt: '2026-08-30' },
-  { id: 'SC-0036', status: 'qc', color: 'green', name: 'Hồng Yến', price: '760.000đ', paymentMethod: 'MOMO', time: '5 giờ trước', items: 'Bộ tự thêu hoa cúc (x3)', avatar: 'HY', assignee: STAFF[2], qcStep: 'Đóng gói', createdAt: '2026-08-30' },
-
-  // === ĐANG GIAO === (đã bàn giao đơn vị vận chuyển)
-  { id: 'SC-0034', status: 'shipping', color: 'amber', name: 'Phương Anh', price: '580.000đ', paymentMethod: 'COD', time: '1 ngày trước', items: 'Thêu tên áo phông (x3)', avatar: 'PA', assignee: STAFF[2], shipper: 'GHN', trackingNo: 'GHN2612345', createdAt: '2026-08-29' },
-  { id: 'SC-0032', status: 'shipping', color: 'amber', name: 'Diệu Anh', price: '1.020.000đ', paymentMethod: 'VNPAY', time: '2 ngày trước', items: 'Thêu logo đồng phục (x5)', avatar: 'DA', assignee: STAFF[0], shipper: 'GHTK', trackingNo: 'GHTK8899123', createdAt: '2026-08-28' },
-
-  // === HOÀN THÀNH === (khách đã nhận)
-  { id: 'SC-0035', status: 'delivered', color: 'emerald', name: 'Minh Tú', price: '350.000đ', paymentMethod: 'MOMO', time: '3 ngày trước', items: 'Tote Cúc Họa Mi', avatar: 'MT', assignee: STAFF[0], rating: 5, completedAt: '25/08/2026', createdAt: '2026-08-27' },
-  { id: 'SC-0030', status: 'delivered', color: 'emerald', name: 'Hà Anh', price: '890.000đ', paymentMethod: 'VNPAY', time: '5 ngày trước', items: 'Tranh phong cảnh làng quê', avatar: 'HA', assignee: STAFF[1], rating: 4, completedAt: '23/08/2026', createdAt: '2026-08-25' },
-
-  // === ĐÃ HỦY === (đơn bị hủy)
-  { id: 'SC-0041', status: 'cancelled', color: 'red', name: 'Thu Trang', price: '280.000đ', paymentMethod: 'COD', time: '1 ngày trước', items: 'Khăn thêu chữ', avatar: 'TT', cancelReason: 'Khách đổi ý trước SX', assignee: null as typeof STAFF[number] | null, cancelledAt: '27/08/2026', createdAt: '2026-08-29' },
-];
-
-// --- LỊCH SỬ ĐƠN HÀNG (đã hoàn thành / hủy / hoàn) ---
-const ORDER_HISTORY = [
-  { id: 'SC-0035', status: 'delivered', name: 'Minh Tú', items: 'Túi Tote Canvas (x1)', price: '350.000đ', paymentMethod: 'MOMO', avatar: 'MT', assignee: STAFF[0], completedAt: '25/08/2026', orderedAt: '20/08/2026', deliveryDays: 5, rating: 5 },
-  { id: 'SC-0033', status: 'delivered', name: 'Hà Phương', items: 'Áo Phông Thêu Logo (x3)', price: '1.350.000đ', paymentMethod: 'VNPAY', avatar: 'HP', assignee: STAFF[1], completedAt: '24/08/2026', orderedAt: '18/08/2026', deliveryDays: 6, rating: 4 },
-  { id: 'SC-0031', status: 'delivered', name: 'Đức Anh', items: 'Mũ Bucket Custom', price: '250.000đ', paymentMethod: 'COD', avatar: 'ĐA', assignee: STAFF[0], completedAt: '22/08/2026', orderedAt: '17/08/2026', deliveryDays: 5, rating: 5 },
-  { id: 'SC-0029', status: 'cancelled', name: 'Thu Hằng', items: 'Vỏ gối Linen (x2)', price: '480.000đ', paymentMethod: 'MOMO', avatar: 'TH', assignee: null, cancelledAt: '21/08/2026', orderedAt: '21/08/2026', reason: 'Khách đổi ý, hủy trước khi sản xuất' },
-  { id: 'SC-0027', status: 'refunded', name: 'Quốc Bảo', items: 'Túi Canvas Custom', price: '320.000đ', paymentMethod: 'VNPAY', avatar: 'QB', assignee: STAFF[1], refundedAt: '19/08/2026', orderedAt: '12/08/2026', reason: 'Lỗi thêu sai font chữ, hoàn tiền 100%' },
-  { id: 'SC-0025', status: 'delivered', name: 'Ngọc Trinh', items: 'Túi Tote Hoa Hồng (x1)', price: '380.000đ', paymentMethod: 'COD', avatar: 'NT', assignee: STAFF[2], completedAt: '18/08/2026', orderedAt: '13/08/2026', deliveryDays: 5, rating: 5 },
-  { id: 'SC-0022', status: 'delivered', name: 'Văn Hùng', items: 'Áo Polo Thêu Tên (x5)', price: '2.250.000đ', paymentMethod: 'VNPAY', avatar: 'VH', assignee: STAFF[0], completedAt: '15/08/2026', orderedAt: '08/08/2026', deliveryDays: 7, rating: 4 },
-  { id: 'SC-0019', status: 'cancelled', name: 'Yến Nhi', items: 'Khăn Thêu Custom', price: '150.000đ', paymentMethod: 'COD', avatar: 'YN', assignee: null, cancelledAt: '10/08/2026', orderedAt: '10/08/2026', reason: 'Không liên lạc được khách sau 48h' },
-];
+// Lịch sử đơn hàng — startup empty, sau này sẽ query orders where status in (delivered/cancelled)
+const ORDER_HISTORY: any[] = [];
 
 // Retention: giữ 60 ngày trong DB, sau đó archive → Excel
 const PROFIT_MARGIN = 0.48; // Biên lợi nhuận ~ 48%
@@ -144,15 +107,11 @@ const ARCHIVE_POLICY = {
   includes: ['Đơn hàng', 'Lịch sử trạng thái', 'Thanh toán', 'Thông tin khách'],
 };
 
-const MOCK_PRODUCTS = [
-  { name: 'Túi Tote Hoa Cúc', cost: '150.000đ', originalPrice: '350.000đ', discount: '10%', finalPrice: '315.000đ', stock: 0, alert: true, avatar: 'T' },
-  { name: 'Mũ Bucket Custom', cost: '120.000đ', originalPrice: '250.000đ', discount: null, finalPrice: '250.000đ', stock: 45, alert: false, avatar: 'M' },
-];
-
-const MOCK_CUSTOMERS = [
-  { name: 'Khánh Huyền', email: 'khanhhuyen.design@gmail.com', phone: '0987 654 321', orders: 4, spent: '2.150.000đ', vip: true, avatar: 'KH' },
-  { name: 'An Nguyễn', email: 'an.nguyen99@gmail.com', phone: '0345 123 999', orders: 1, spent: '250.000đ', vip: false, avatar: 'AN' },
-];
+// 2026-09-20: đã clear demo — sản phẩm live đọc qua useProducts(), khách hàng
+// giờ query từ bảng `profiles`/`orders` (chưa wire — hiển thị rỗng cho tới khi
+// có tính năng thật)
+const MOCK_PRODUCTS: any[] = [];
+const MOCK_CUSTOMERS: any[] = [];
 
 const COLUMNS = [
   { id: 'pending',   title: 'Chờ xử lý',    icon: '⏳', colorClass: 'bg-gray-400',                  badgeClass: 'bg-gray-300/50 text-gray-600',   containerClass: 'bg-gray-100',    borderTop: '' },
