@@ -2,6 +2,7 @@ import { categories, products } from "@/lib/data";
 import Link from "next/link";
 import CartBar from "@/components/CartBar";
 import AddToCartButton from "@/components/AddToCartButton";
+import AccountBadge from "@/components/AccountBadge";
 
 function formatVND(price: number) {
   return price.toLocaleString("vi-VN") + "đ";
@@ -92,14 +93,8 @@ export default function HomePage() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
               Tra cứu đơn
             </Link>
-            {/* Admin link ẩn — vào admin bằng mã nội bộ */}
             <CartBar />
-            <Link href="/login" className="text-sm text-sage-700 hover:text-charcoal border border-sage-200 rounded-full px-4 py-2 transition hidden sm:inline-block">
-              Đăng nhập
-            </Link>
-            <Link href="/register" className="text-sm bg-sage-500 text-white rounded-full px-4 py-2 hover:bg-sage-600 transition font-medium hidden sm:inline-block">
-              Đăng ký
-            </Link>
+            <AccountBadge />
           </div>
         </div>
       </header>

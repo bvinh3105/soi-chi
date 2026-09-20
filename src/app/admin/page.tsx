@@ -1105,7 +1105,8 @@ function AdminDashboard() {
                   </svg>
                 </button>
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
+              <p className="text-xs text-gray-600 truncate mt-0.5" title={user?.email || ''}>{user?.email}</p>
+              <div className="flex items-center gap-1.5 mt-1">
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${ROLE_META[CURRENT_ROLE].badgeClass}`}>{ROLE_META[CURRENT_ROLE].icon} {ROLE_META[CURRENT_ROLE].label}</span>
                 <button
                   type="button"
@@ -1115,7 +1116,6 @@ function AdminDashboard() {
                   Đăng xuất
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 truncate mt-0.5">{user?.email}</p>
             </div>
           </div>
         </div>
