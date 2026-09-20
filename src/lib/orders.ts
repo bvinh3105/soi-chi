@@ -349,6 +349,25 @@ export async function trackGuestOrder(
   };
 }
 
+// ─── Xóa đơn hàng (chỉ admin — RLS check) ──────────────────
+// Cascade sẵn từ schema.sql: order_items, order_history, payments cùng
+// bị xóa. Migration 009 mới thêm policy DELETE cho is_admin() — nếu
+// migration chưa chạy, câu này sẽ trả về error "new row violates
+// row-level security policy" hoặc chỉ đơn giản không xóa row nào.
+export async function deleteOrder(orderId: string): Promise<void> {
+  const sb = _getSupabase();
+  const { error, count } = await sb
+    .from("orders")
+    .delete({ count: "exact" })
+    .eq("id", orderId);
+  if (error) throw new Error(error.message);
+  if (count === 0) {
+    throw new Error(
+      "Không xóa được đơn. Có thể migration 009 chưa chạy hoặc tài khoản không phải admin."
+    );
+  }
+}
+
 // ─── Format tiền VNĐ ───────────────────────────────────────
 export function fmtVnd(amount: number) {
   return amount.toLocaleString("vi-VN") + "đ";

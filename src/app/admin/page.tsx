@@ -28,6 +28,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import GitProgressTracker, { type ProgressStep } from '@/components/GitProgressTracker';
 import { useProducts, createProduct, updateProduct, deleteProduct, type ProductInput } from '@/lib/products';
+import { deleteOrder } from '@/lib/orders';
 import {
   DAILY_REVENUE,
   MONTHLY_PL,
@@ -385,13 +386,42 @@ function AdminDashboard() {
   const [revenueDrillSearch, setRevenueDrillSearch] = useState('');
   const [revenuePeriod, setRevenuePeriod] = useState<'today' | '7days' | 'month' | 'all'>('all');
 
+  // Xóa đơn hàng — flow gõ lại mã đơn để xác nhận
+  const [deleteOrderConfirmOpen, setDeleteOrderConfirmOpen] = useState(false);
+  const [deleteOrderConfirmText, setDeleteOrderConfirmText] = useState('');
+  const [deleteOrderInFlight, setDeleteOrderInFlight] = useState(false);
+  const [deleteOrderError, setDeleteOrderError] = useState<string | null>(null);
+
   const closeAllModals = () => {
     setOrderModal(null);
     setProductModal(null);
     setCustomerModal(null);
     setRevenueDrill(null);
     setRevenueDrillSearch('');
+    setDeleteOrderConfirmOpen(false);
+    setDeleteOrderConfirmText('');
+    setDeleteOrderError(null);
   };
+
+  async function handleDeleteOrder() {
+    if (!orderModal) return;
+    const expected = orderModal.order_number || orderModal.id;
+    if (deleteOrderConfirmText.trim() !== expected) {
+      setDeleteOrderError(`Mã đơn nhập không khớp. Cần gõ chính xác: ${expected}`);
+      return;
+    }
+    setDeleteOrderInFlight(true);
+    setDeleteOrderError(null);
+    try {
+      await deleteOrder(orderModal.id);
+      setOrders(prev => prev.filter((o: any) => o.id !== orderModal.id));
+      closeAllModals();
+    } catch (e: any) {
+      setDeleteOrderError(e?.message || 'Lỗi không xác định khi xóa đơn.');
+    } finally {
+      setDeleteOrderInFlight(false);
+    }
+  }
 
   // Step 2: Products từ Supabase (fallback static)
   const { products: liveProducts, categories: liveCategories, source: productsSource, loading: productsLoading, error: productsError, refresh: refreshProducts } = useProducts();
@@ -2455,6 +2485,68 @@ function AdminDashboard() {
                   />
                 </div>
               </details>
+
+              {/* Danger zone — xóa đơn (chỉ hiển thị cho đơn thật trong DB, không hiện cho mock data) */}
+              {typeof orderModal.id === 'string' && orderModal.id.length >= 32 && (
+                <div className="bg-white rounded-xl border-2 border-red-200 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-red-50 border-b border-red-200">
+                    <h3 className="text-xs font-bold text-red-700 uppercase tracking-wide">⚠ Vùng nguy hiểm</h3>
+                  </div>
+                  <div className="p-4">
+                    {!deleteOrderConfirmOpen ? (
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">Xóa đơn hàng vĩnh viễn</p>
+                          <p className="text-xs text-gray-500 mt-1">Chỉ dùng cho đơn test. Không thể hoàn tác. Sản phẩm, lịch sử, thanh toán liên quan cũng sẽ bị xóa.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setDeleteOrderConfirmOpen(true); setDeleteOrderConfirmText(''); setDeleteOrderError(null); }}
+                          className="shrink-0 px-3 py-2 text-sm font-bold text-red-700 border border-red-300 rounded-md hover:bg-red-50 transition-colors"
+                        >
+                          Xóa đơn
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-sm text-gray-800">
+                          Để xác nhận, gõ chính xác mã đơn <code className="px-1.5 py-0.5 bg-gray-100 rounded font-mono text-red-700 font-bold">{orderModal.order_number || orderModal.id}</code> vào ô dưới:
+                        </p>
+                        <input
+                          type="text"
+                          value={deleteOrderConfirmText}
+                          onChange={(e) => { setDeleteOrderConfirmText(e.target.value); setDeleteOrderError(null); }}
+                          placeholder={orderModal.order_number || orderModal.id}
+                          className="w-full border border-red-300 rounded-md py-2 px-3 text-sm font-mono focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                          autoFocus
+                          disabled={deleteOrderInFlight}
+                        />
+                        {deleteOrderError && (
+                          <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md p-2">{deleteOrderError}</p>
+                        )}
+                        <div className="flex items-center gap-2 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => { setDeleteOrderConfirmOpen(false); setDeleteOrderConfirmText(''); setDeleteOrderError(null); }}
+                            disabled={deleteOrderInFlight}
+                            className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDeleteOrder}
+                            disabled={deleteOrderInFlight || deleteOrderConfirmText.trim() !== (orderModal.order_number || orderModal.id)}
+                            className="px-3 py-2 text-sm font-bold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
+                          >
+                            {deleteOrderInFlight ? 'Đang xóa...' : 'Tôi hiểu, xóa vĩnh viễn'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
