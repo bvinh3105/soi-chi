@@ -803,8 +803,8 @@ function AdminDashboard() {
       {/* SIDEBAR */}
       <aside className="w-60 bg-white border-r border-gray-200 flex flex-col z-20 shrink-0">
         <div className="p-6 flex items-center gap-3 border-b border-gray-100">
-          <div className="w-8 h-8 bg-gray-900 text-white flex items-center justify-center rounded-lg font-bold">M</div>
-          <h1 className="text-xl font-bold tracking-tight">Sợi chỉ</h1>
+          <div className="w-8 h-8 bg-gray-900 text-white flex items-center justify-center rounded-lg font-bold">S</div>
+          <img src="/logo.png" alt="Sợi chỉ" className="h-6 w-auto" />
         </div>
         
         <nav className="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
