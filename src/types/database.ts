@@ -325,6 +325,32 @@ export interface Database {
           custom_options?: Record<string, unknown>;
         };
       };
+      admin_activity_log: {
+        Row: {
+          id: string;
+          admin_id: string | null;
+          admin_email: string;
+          admin_name: string;
+          action: string;
+          target_type: string;
+          target_id: string;
+          details: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          admin_id?: string | null;
+          admin_email?: string;
+          admin_name?: string;
+          action: string;
+          target_type?: string;
+          target_id?: string;
+          details?: Record<string, unknown>;
+        };
+        Update: {
+          details?: Record<string, unknown>;
+        };
+      };
     };
   };
 }

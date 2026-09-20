@@ -10,6 +10,7 @@ import {
 import type { User, Session } from "@supabase/supabase-js";
 import type { Profile } from "@/types/database";
 import { getSupabaseSafe } from "./supabase";
+import { logActivity } from "./activityLog";
 
 interface AuthState {
   user: User | null;
@@ -105,10 +106,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sb = getSupabaseSafe();
     if (!sb) return { error: "Chức năng đăng nhập tài khoản đang được cập nhật. Vui lòng thử lại sau." };
     try {
-      const { error } = await sb.auth.signInWithPassword({
+      const { data, error } = await sb.auth.signInWithPassword({
         email,
         password,
       });
+      if (!error && data?.user) {
+        // Log activity — fire-and-forget. Chỉ có ý nghĩa cho admin, nhưng
+        // RLS đã lọc rồi nên log của user thường không hiện trong UI admin.
+        logActivity(
+          { admin_id: data.user.id, admin_email: data.user.email },
+          { action: "login" }
+        );
+      }
       return { error: error?.message ?? null };
     } catch {
       return { error: "Không thể kết nối server. Vui lòng thử lại sau." };
@@ -152,6 +161,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
       if (error) return { error: error.message };
       if (data) setProfile(data as Profile);
+      logActivity(
+        { admin_id: user.id, admin_email: user.email, admin_name: (data as Profile)?.full_name },
+        { action: "update_profile", target_type: "profile", target_id: user.id, details: updates }
+      );
       return { error: null };
     } catch {
       return { error: "Không thể kết nối server. Vui lòng thử lại sau." };
@@ -159,6 +172,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    // Log TRƯỚC khi signOut vì signOut xong thì auth.uid() = null → RLS
+    // "Auth users insert own activity" chặn insert.
+    if (user) {
+      logActivity(
+        { admin_id: user.id, admin_email: user.email, admin_name: profile?.full_name },
+        { action: "logout" }
+      );
+    }
     const sb = getSupabaseSafe();
     if (sb) {
       try {

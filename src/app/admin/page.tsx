@@ -30,6 +30,7 @@ import GitProgressTracker, { type ProgressStep } from '@/components/GitProgressT
 import { useProducts, createProduct, updateProduct, deleteProduct, type ProductInput } from '@/lib/products';
 import { deleteOrder } from '@/lib/orders';
 import { useAuth } from '@/lib/auth';
+import { logActivity, fetchActivityLog, ACTION_LABELS, ACTION_COLORS, type ActivityLogRow } from '@/lib/activityLog';
 import {
   DAILY_REVENUE,
   MONTHLY_PL,
@@ -366,7 +367,7 @@ export default function AdminPage() {
   );
 }
 
-type AdminTab = 'overview' | 'orders' | 'products' | 'customers' | 'history' | 'accounting' | 'roles';
+type AdminTab = 'overview' | 'orders' | 'products' | 'customers' | 'history' | 'accounting' | 'roles' | 'activity';
 const CURRENT_ROLE: RoleKey = 'owner'; // Mặc định — cho tới khi thêm bảng phân quyền chi tiết. AdminGuard đã đảm bảo mọi ai đến đây đều có profiles.role='admin'.
 
 function computeInitials(name: string, fallbackEmail?: string | null): string {
@@ -384,6 +385,10 @@ function AdminDashboard() {
   const { user, profile, updateProfile, signOut } = useAuth();
   const displayName = profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Admin';
   const displayInitials = computeInitials(profile?.full_name || '', user?.email);
+  const activityCtx = React.useMemo(
+    () => (user ? { admin_id: user.id, admin_email: user.email, admin_name: profile?.full_name } : null),
+    [user, profile?.full_name]
+  );
   const [nameEditOpen, setNameEditOpen] = useState(false);
   const [nameEditValue, setNameEditValue] = useState('');
   const [nameEditSaving, setNameEditSaving] = useState(false);
@@ -412,6 +417,66 @@ function AdminDashboard() {
   const [deleteOrderInFlight, setDeleteOrderInFlight] = useState(false);
   const [deleteOrderError, setDeleteOrderError] = useState<string | null>(null);
 
+  // Nhật ký thao tác admin
+  const [activityLog, setActivityLog] = useState<ActivityLogRow[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
+  const [activityFilterAction, setActivityFilterAction] = useState<string>('all');
+  const [activityFilterAdmin, setActivityFilterAdmin] = useState<string>('all');
+  const [orderActivity, setOrderActivity] = useState<ActivityLogRow[]>([]);
+
+  async function loadActivityLog() {
+    setActivityLoading(true);
+    setActivityError(null);
+    try {
+      const rows = await fetchActivityLog({ limit: 200 });
+      setActivityLog(rows);
+    } catch (e: any) {
+      setActivityError(e?.message || 'Không tải được nhật ký. Có thể migration 010 chưa chạy.');
+    } finally {
+      setActivityLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'activity') loadActivityLog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Tải activity theo đơn khi mở modal
+  useEffect(() => {
+    if (!orderModal?.id || typeof orderModal.id !== 'string' || orderModal.id.length < 32) {
+      setOrderActivity([]);
+      return;
+    }
+    let cancelled = false;
+    fetchActivityLog({ targetId: orderModal.id, limit: 50 })
+      .then(rows => { if (!cancelled) setOrderActivity(rows); })
+      .catch(() => { if (!cancelled) setOrderActivity([]); });
+    return () => { cancelled = true; };
+  }, [orderModal?.id]);
+
+  const activityAdmins = React.useMemo(() => {
+    const set = new Map<string, string>();
+    for (const r of activityLog) {
+      const key = r.admin_id || r.admin_email;
+      const label = r.admin_name || r.admin_email || '(không rõ)';
+      if (key && !set.has(key)) set.set(key, label);
+    }
+    return Array.from(set.entries());
+  }, [activityLog]);
+
+  const filteredActivity = React.useMemo(() => {
+    return activityLog.filter(r => {
+      if (activityFilterAction !== 'all' && r.action !== activityFilterAction) return false;
+      if (activityFilterAdmin !== 'all') {
+        const key = r.admin_id || r.admin_email;
+        if (key !== activityFilterAdmin) return false;
+      }
+      return true;
+    });
+  }, [activityLog, activityFilterAction, activityFilterAdmin]);
+
   const closeAllModals = () => {
     setOrderModal(null);
     setProductModal(null);
@@ -422,6 +487,19 @@ function AdminDashboard() {
     setDeleteOrderConfirmText('');
     setDeleteOrderError(null);
   };
+
+  // Wrapper — log view khi mở modal (client-throttle first-view-per-day trong logActivity)
+  const openOrderModal = React.useCallback((o: any) => {
+    setOrderModal(o);
+    if (o?.id && typeof o.id === 'string' && o.id.length >= 32) {
+      logActivity(activityCtx, {
+        action: 'view_order',
+        target_type: 'order',
+        target_id: o.id,
+        details: { order_number: o.order_number || o.id, customer_name: o.name },
+      });
+    }
+  }, [activityCtx]);
 
   function openNameEdit() {
     setNameEditValue(profile?.full_name || '');
@@ -457,6 +535,16 @@ function AdminDashboard() {
     setDeleteOrderError(null);
     try {
       await deleteOrder(orderModal.id);
+      logActivity(activityCtx, {
+        action: 'delete_order',
+        target_type: 'order',
+        target_id: orderModal.id,
+        details: {
+          order_number: orderModal.order_number || orderModal.id,
+          customer_name: orderModal.name,
+          price: orderModal.price,
+        },
+      });
       setOrders(prev => prev.filter((o: any) => o.id !== orderModal.id));
       closeAllModals();
     } catch (e: any) {
@@ -511,8 +599,20 @@ function AdminDashboard() {
       };
       if (productModal?.id) {
         await updateProduct(productModal.id, input);
+        logActivity(activityCtx, {
+          action: 'update_product',
+          target_type: 'product',
+          target_id: productModal.id,
+          details: { name: input.name, slug: input.slug },
+        });
       } else {
-        await createProduct(input);
+        const created = await createProduct(input);
+        logActivity(activityCtx, {
+          action: 'create_product',
+          target_type: 'product',
+          target_id: created?.id ?? '',
+          details: { name: input.name, slug: input.slug },
+        });
       }
       await refreshProducts();
       closeAllModals();
@@ -525,7 +625,14 @@ function AdminDashboard() {
 
   async function handleDeleteProduct(id: string) {
     try {
+      const target = liveProducts.find((p: any) => p.id === id);
       await deleteProduct(id);
+      logActivity(activityCtx, {
+        action: 'delete_product',
+        target_type: 'product',
+        target_id: id,
+        details: { name: target?.name, slug: target?.slug },
+      });
       await refreshProducts();
       setProductDeleteConfirm(null);
     } catch (e) {
@@ -860,6 +967,22 @@ function AdminDashboard() {
         changed_by: user?.id ?? null,
         note: `Chuyển cột Kanban → ${dbStatus}`,
       });
+      logActivity(activityCtx, {
+        action: 'drag_order',
+        target_type: 'order',
+        target_id: order.id,
+        details: {
+          order_number: (order as any).order_number || order.id,
+          to_status: dbStatus,
+          customer_name: order.name,
+        },
+      });
+      // Refresh per-order activity nếu đang mở modal của chính đơn đó
+      if (orderModal?.id === order.id) {
+        fetchActivityLog({ targetId: order.id, limit: 50 })
+          .then(rows => setOrderActivity(rows))
+          .catch(() => {});
+      }
     } catch {
       // Nếu lỗi → thông báo nhẹ (không revert UI để không giật)
       console.error('Realtime update failed for order', order.id);
@@ -943,6 +1066,13 @@ function AdminDashboard() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
                 Phân quyền
               </button>
+              <button
+                onClick={() => setActiveTab('activity')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${activeTab === 'activity' ? 'bg-emerald-50 text-emerald-700 font-bold border-l-2 border-emerald-500 -ml-0.5 pl-[10px]' : 'font-medium text-gray-600 hover:bg-gray-100'}`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                Nhật ký thao tác
+              </button>
             </>
           )}
         </nav>
@@ -1005,6 +1135,7 @@ function AdminDashboard() {
               {activeTab === 'history' && 'Lịch sử Đơn hàng'}
               {activeTab === 'accounting' && 'Kế toán & Tài chính'}
               {activeTab === 'roles' && 'Phân quyền & Thành viên'}
+              {activeTab === 'activity' && 'Nhật ký thao tác admin'}
             </h2>
             {activeTab === 'overview' && <p className="text-xs text-gray-500 mt-0.5">Hôm nay Thứ Sáu, 28/08/2026 · Dữ liệu cập nhật lúc 09:42</p>}
             {activeTab === 'accounting' && <p className="text-xs text-gray-500 mt-0.5">Kỳ báo cáo: Tháng 8/2026 · Chốt sổ ngày 31/08</p>}
@@ -1456,7 +1587,7 @@ function AdminDashboard() {
                             strategy={verticalListSortingStrategy}
                           >
                             {columnOrders.map(order => (
-                              <SortableOrderCard key={order.id} order={order} onClick={() => setOrderModal({ ...order, uiStatus: col.title })} />
+                              <SortableOrderCard key={order.id} order={order} onClick={() => openOrderModal({ ...order, uiStatus: col.title })} />
                             ))}
                             {columnOrders.length === 0 && (
                               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-center min-h-[160px] pointer-events-none">
@@ -2434,6 +2565,117 @@ function AdminDashboard() {
 
             </div>
           )}
+
+          {activeTab === 'activity' && (
+            <div className="h-full overflow-y-auto p-6 bg-gray-50">
+              <div className="max-w-6xl mx-auto space-y-4">
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold uppercase text-gray-500">Loại</label>
+                    <select
+                      value={activityFilterAction}
+                      onChange={(e) => setActivityFilterAction(e.target.value)}
+                      className="border border-gray-300 rounded-md py-1.5 px-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    >
+                      <option value="all">Tất cả</option>
+                      {Object.entries(ACTION_LABELS).map(([k, v]) => (
+                        <option key={k} value={k}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold uppercase text-gray-500">Admin</label>
+                    <select
+                      value={activityFilterAdmin}
+                      onChange={(e) => setActivityFilterAdmin(e.target.value)}
+                      className="border border-gray-300 rounded-md py-1.5 px-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    >
+                      <option value="all">Tất cả</option>
+                      {activityAdmins.map(([id, label]) => (
+                        <option key={id} value={id}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={loadActivityLog}
+                    className="ml-auto text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline transition"
+                  >
+                    ↻ Tải lại
+                  </button>
+                  <span className="text-xs text-gray-500">{filteredActivity.length} / {activityLog.length} bản ghi</span>
+                </div>
+
+                {activityLoading && <p className="text-center text-sm text-gray-500 py-8">Đang tải...</p>}
+                {activityError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+                    {activityError}
+                  </div>
+                )}
+                {!activityLoading && !activityError && filteredActivity.length === 0 && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-sm text-gray-500">
+                    Chưa có thao tác nào khớp bộ lọc.
+                  </div>
+                )}
+
+                {!activityLoading && filteredActivity.length > 0 && (
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500">
+                        <tr>
+                          <th className="text-left px-4 py-2.5 font-bold">Thời gian</th>
+                          <th className="text-left px-4 py-2.5 font-bold">Admin</th>
+                          <th className="text-left px-4 py-2.5 font-bold">Thao tác</th>
+                          <th className="text-left px-4 py-2.5 font-bold">Đối tượng</th>
+                          <th className="text-left px-4 py-2.5 font-bold">Chi tiết</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredActivity.map(row => {
+                          const label = ACTION_LABELS[row.action as keyof typeof ACTION_LABELS] || row.action;
+                          const color = ACTION_COLORS[row.action as keyof typeof ACTION_COLORS] || 'bg-gray-50 text-gray-700 border-gray-200';
+                          const ts = new Date(row.created_at);
+                          const details = row.details || {};
+                          return (
+                            <tr key={row.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-2.5 whitespace-nowrap text-xs text-gray-600">
+                                {ts.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="text-xs font-bold text-gray-900">{row.admin_name || '(chưa đặt tên)'}</div>
+                                <div className="text-[11px] text-gray-500">{row.admin_email}</div>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded border ${color}`}>{label}</span>
+                              </td>
+                              <td className="px-4 py-2.5 text-xs text-gray-700">
+                                {row.target_type && (
+                                  <>
+                                    <span className="text-gray-500">{row.target_type}:</span>{' '}
+                                    <span className="font-mono">
+                                      {(details.order_number as string) || (details.name as string) || (row.target_id ? row.target_id.slice(0, 8) : '—')}
+                                    </span>
+                                  </>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-xs text-gray-600 max-w-md">
+                                {Object.keys(details).length > 0 ? (
+                                  <code className="text-[11px] font-mono bg-gray-50 px-1.5 py-0.5 rounded truncate inline-block max-w-full">
+                                    {JSON.stringify(details)}
+                                  </code>
+                                ) : (
+                                  <span className="text-gray-400">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -2550,6 +2792,46 @@ function AdminDashboard() {
                   />
                 </div>
               </details>
+
+              {/* Nhật ký thao tác cho đơn này — chỉ hiện khi có DB row thật */}
+              {typeof orderModal.id === 'string' && orderModal.id.length >= 32 && (
+                <details className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" open>
+                  <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors select-none">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide">Nhật ký thao tác của đơn</h3>
+                    <span className="text-[11px] text-gray-400 flex items-center gap-2">
+                      {orderActivity.length} sự kiện
+                      <svg className="w-4 h-4 text-gray-400 transition-transform [details[open]>&]:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </span>
+                  </summary>
+                  <div className="px-4 pb-4">
+                    {orderActivity.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic py-2">Chưa có thao tác nào được ghi cho đơn này.</p>
+                    ) : (
+                      <ol className="space-y-2 border-l-2 border-gray-100 pl-4 ml-1">
+                        {orderActivity.map(row => {
+                          const label = ACTION_LABELS[row.action as keyof typeof ACTION_LABELS] || row.action;
+                          const color = ACTION_COLORS[row.action as keyof typeof ACTION_COLORS] || 'bg-gray-50 text-gray-700 border-gray-200';
+                          const ts = new Date(row.created_at);
+                          return (
+                            <li key={row.id} className="relative text-xs">
+                              <span className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-gray-300 border-2 border-white"></span>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${color}`}>{label}</span>
+                                <span className="font-medium text-gray-800">{row.admin_name || row.admin_email || '(không rõ)'}</span>
+                                <span className="text-gray-400">·</span>
+                                <span className="text-gray-500">{ts.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              {row.details && (row.details.to_status as string) && (
+                                <p className="text-[11px] text-gray-500 mt-0.5">→ {row.details.to_status as string}</p>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    )}
+                  </div>
+                </details>
+              )}
 
               {/* Danger zone — xóa đơn (chỉ hiển thị cho đơn thật trong DB, không hiện cho mock data) */}
               {typeof orderModal.id === 'string' && orderModal.id.length >= 32 && (
@@ -2869,7 +3151,7 @@ function AdminDashboard() {
                             const col = COLUMNS.find(c => c.id === order.status);
                             setRevenueDrill(null);
                             setRevenueDrillSearch('');
-                            setOrderModal({ ...order, uiStatus: col?.title || order.status });
+                            openOrderModal({ ...order, uiStatus: col?.title || order.status });
                           }}
                         >
                           <div className="flex items-start gap-3">

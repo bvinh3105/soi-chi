@@ -121,6 +121,16 @@ mật khẩu mới (`updateUser({password})`). Cả 2 hàm nằm trong `src/lib/
 `/register`), sidebar sẽ show phần trước `@` của email. Bấm icon bút chì cạnh tên để đổi
 (gọi `updateProfile()` → RLS `"Users update own profile"` cho phép ghi).
 
+**Nhật ký thao tác admin (từ 2026-09-20)**: Migration 010 tạo bảng `admin_activity_log`.
+Log 9 loại action: `login`, `logout`, `view_order`, `drag_order`, `delete_order`,
+`create_product`, `update_product`, `delete_product`, `update_profile`. Helper trong
+`src/lib/activityLog.ts` là fire-and-forget (không await, không throw — bug logging không
+được chặn UX). `view_order` throttle client-side: 1 lần/ngày/đơn/admin qua localStorage
+(key `sc_admin_view_log_v1`) để không spam khi admin bấm đi bấm lại. Hiển thị 2 chỗ:
+(1) tab "Nhật ký thao tác" trong sidebar admin — bảng toàn hệ thống có filter theo
+loại action + admin; (2) trong modal chi tiết từng đơn — timeline compact chỉ event của
+đơn đó. `order_history.changed_by` giờ cũng được truyền đúng khi kéo Kanban.
+
 **Bắt buộc set up 1 lần trên Supabase Dashboard** (chưa làm — cần làm để tính năng hoạt động):
 vào Authentication → URL Configuration → Redirect URLs, thêm `https://soi-chi.pages.dev/reset-password`
 (và `http://localhost:3000/reset-password` nếu muốn test local). Thiếu bước này, Supabase sẽ
