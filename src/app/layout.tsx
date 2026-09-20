@@ -22,9 +22,7 @@ export const metadata: Metadata = {
   keywords: ['thêu tay', 'handmade', 'thêu thủ công', 'tranh thêu', 'kit DIY', 'miên man'],
   authors: [{ name: 'Sợi chỉ' }],
   creator: 'Sợi chỉ',
-  // Cloudflare Pages project name stuck at "mien-man" (CF không cho rename project),
-  // nên URL mien-man.pages.dev giữ nguyên dù thương hiệu đã đổi thành "Sợi chỉ".
-  metadataBase: new URL('https://mien-man.pages.dev'),
+  metadataBase: new URL('https://soi-chi.pages.dev'),
   openGraph: {
     type: 'website',
     locale: 'vi_VN',

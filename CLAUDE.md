@@ -4,9 +4,9 @@ Dự án web thêu tay thủ công. Next.js 14 (static export) + Supabase + Clou
 
 > **Rebrand 2026-09-20**: "Miên Man" đã đổi tên thành **"Sợi chỉ"** (slug ASCII: `soi-chi`).
 > - GitHub repo: `bvinh3105/soi-chi` (đã rename, GitHub redirect URL cũ)
-> - Cloudflare Pages project: **giữ nguyên `mien-man`** — CF không hỗ trợ rename project, đổi
->   sẽ mất URL `mien-man.pages.dev`. Nên tên project + URL vẫn là "mien-man" mặc dù thương hiệu
->   đã đổi. Nếu muốn domain mới, cần add custom domain trong CF Pages settings.
+> - Cloudflare Pages project: **`soi-chi`** — URL production giờ là `https://soi-chi.pages.dev`.
+>   Project cũ `mien-man` (URL `soi-chi.pages.dev`) được **giữ lại** làm archive, không deploy
+>   nữa (frozen ở version 2026-09-20). Nếu muốn xoá hẳn, vào CF Dashboard → Pages → mien-man → Settings → Delete project.
 > - Local directory: vẫn là `G:\...\Projects\mien-man\` (không rename để tránh phá link/path).
 > - Order prefix: đơn cũ giữ `MM-XXX`, đơn mới sẽ là `SC-XXX` sau khi chạy migration 008.
 > - Admin Gmail `mienman.stu@gmail.com` vẫn giữ (không rename Gmail được).
@@ -75,12 +75,12 @@ Settings → Secrets and variables → Actions:
 **Nếu vẫn muốn deploy thủ công** (test nhanh, hoặc GitHub Actions đang lỗi):
 ```bash
 npm run build
-npx wrangler pages deploy out --project-name=mien-man --commit-dirty=true
+npx wrangler pages deploy out --project-name=soi-chi --commit-dirty=true
 ```
 
 **Cách nhận biết production đang bị đè bản lỗi** (không cần đăng nhập):
 ```js
-// Chạy trong Console (F12) trên mien-man.pages.dev, hoặc qua javascript_tool
+// Chạy trong Console (F12) trên soi-chi.pages.dev, hoặc qua javascript_tool
 const res = await fetch('/login?_cb=' + Date.now(), { cache: 'no-store' });
 const html = await res.text();
 const match = html.match(/login\/page-[a-f0-9]+\.js/);
