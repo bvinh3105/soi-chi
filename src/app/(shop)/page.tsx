@@ -3,6 +3,7 @@ import Link from "next/link";
 import CartBar from "@/components/CartBar";
 import AddToCartButton from "@/components/AddToCartButton";
 import AccountBadge from "@/components/AccountBadge";
+import LandingBlocks from "@/components/LandingBlocks";
 
 function formatVND(price: number) {
   return price.toLocaleString("vi-VN") + "đ";
@@ -98,6 +99,9 @@ export default function HomePage() {
           </div>
         </div>
       </header>
+
+      {/* ─── BLOCKS EDITABLE (Puck) — hiển thị các block admin thêm ở /admin/landing ─── */}
+      <LandingBlocks />
 
       {/* ─── HERO ────────────────────────────────────────── */}
       <section className="bg-cream overflow-hidden">

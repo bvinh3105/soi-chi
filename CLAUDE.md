@@ -121,6 +121,17 @@ mật khẩu mới (`updateUser({password})`). Cả 2 hàm nằm trong `src/lib/
 `/register`), sidebar sẽ show phần trước `@` của email. Bấm icon bút chì cạnh tên để đổi
 (gọi `updateProfile()` → RLS `"Users update own profile"` cho phép ghi).
 
+**Landing block editor với Puck (từ 2026-09-20)**: Migration 012 tạo bảng `landing_content`
+(1 row id='home', jsonb `data`). Owner vào `/admin/landing` → mở Puck editor kéo thả block
+(Hero, FeatureBullets, CtaBanner, TextSection). Bấm **Publish** → lưu qua RLS admin-only.
+Trang chủ (`/`) render các block đó phía trên hero cũ qua `<LandingBlocks />` — dynamic
+import Puck runtime chỉ khi DB có content nên visitor thường không phải tải thêm ~90KB.
+
+Thêm block mới: sửa `src/components/puckConfig.tsx` — thêm 1 entry vào `components: {...}`
+với `fields` (schema), `defaultProps`, và `render` (React component). TypeScript của Puck
+khá khắt khe — dùng pattern `render: MyComponent as unknown as AnyConfig["render"]` như
+các block hiện có.
+
 **Mời thành viên + role_key (từ 2026-09-20)**: Migration 011 thêm cột `profiles.role_key`
 (`owner`/`manager`/`staff`/`accountant`) + bảng `invitations` + trigger auto-apply. Cơ chế:
 Owner mở tab "Phân quyền" → "Mời thành viên" → nhập email + role → tạo row invitation. Người

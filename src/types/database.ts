@@ -46,6 +46,23 @@ export interface Database {
           role_key?: "owner" | "manager" | "staff" | "accountant" | null;
         };
       };
+      landing_content: {
+        Row: {
+          id: string;
+          data: Record<string, unknown>;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id: string;
+          data?: Record<string, unknown>;
+          updated_by?: string | null;
+        };
+        Update: {
+          data?: Record<string, unknown>;
+          updated_by?: string | null;
+        };
+      };
       invitations: {
         Row: {
           id: string;
