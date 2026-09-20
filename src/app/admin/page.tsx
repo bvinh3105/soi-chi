@@ -31,6 +31,7 @@ import { useProducts, createProduct, updateProduct, deleteProduct, type ProductI
 import { deleteOrder } from '@/lib/orders';
 import { useAuth } from '@/lib/auth';
 import { logActivity, fetchActivityLog, ACTION_LABELS, ACTION_COLORS, type ActivityLogRow } from '@/lib/activityLog';
+import { fetchTeamMembers, fetchInvitations, createInvitation, revokeInvitation, updateMemberRoleKey, removeMemberFromAdmin, type TeamMember, type Invitation, type RoleKey as TeamRoleKey } from '@/lib/team';
 import {
   DAILY_REVENUE,
   MONTHLY_PL,
@@ -375,6 +376,93 @@ function AdminDashboard() {
   const [deleteOrderConfirmText, setDeleteOrderConfirmText] = useState('');
   const [deleteOrderInFlight, setDeleteOrderInFlight] = useState(false);
   const [deleteOrderError, setDeleteOrderError] = useState<string | null>(null);
+
+  // Phân quyền + Invitations
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRoleKey, setInviteRoleKey] = useState<TeamRoleKey>('staff');
+  const [inviteNote, setInviteNote] = useState('');
+  const [inviteSaving, setInviteSaving] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const currentUserRoleKey = profile?.role_key as TeamRoleKey | null | undefined;
+  const isOwner = currentUserRoleKey === 'owner';
+
+  async function loadTeam() {
+    if (!user) return;
+    setTeamLoading(true);
+    setTeamError(null);
+    try {
+      const [members, invs] = await Promise.all([fetchTeamMembers(), fetchInvitations()]);
+      setTeamMembers(members);
+      setInvitations(invs);
+    } catch (e: any) {
+      setTeamError(e?.message || 'Không tải được danh sách. Có thể migration 011 chưa chạy.');
+    } finally {
+      setTeamLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'roles') loadTeam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, user?.id]);
+
+  async function handleCreateInvite() {
+    if (!user) return;
+    setInviteSaving(true);
+    setInviteError(null);
+    try {
+      const inv = await createInvitation({
+        email: inviteEmail,
+        role_key: inviteRoleKey,
+        invited_by: user.id,
+        note: inviteNote,
+      });
+      setInvitations(prev => [inv, ...prev]);
+      setInviteEmail('');
+      setInviteNote('');
+      setInviteRoleKey('staff');
+      setInviteModalOpen(false);
+    } catch (e: any) {
+      setInviteError(e?.message || 'Không tạo được lời mời.');
+    } finally {
+      setInviteSaving(false);
+    }
+  }
+
+  async function handleRevokeInvite(invId: string) {
+    if (!user) return;
+    if (!confirm('Thu hồi lời mời này? Người được mời sẽ không tự lên admin nữa khi signup.')) return;
+    try {
+      await revokeInvitation(invId, user.id);
+      setInvitations(prev => prev.filter(i => i.id !== invId));
+    } catch (e: any) {
+      alert('Lỗi: ' + (e?.message || e));
+    }
+  }
+
+  async function handleChangeMemberRole(userId: string, newRole: TeamRoleKey) {
+    try {
+      await updateMemberRoleKey(userId, newRole);
+      setTeamMembers(prev => prev.map(m => m.id === userId ? { ...m, role_key: newRole } : m));
+    } catch (e: any) {
+      alert('Lỗi đổi role: ' + (e?.message || e));
+    }
+  }
+
+  async function handleRemoveMember(userId: string, name: string) {
+    if (!confirm(`Gỡ ${name} khỏi nhóm admin? Người này sẽ trở về vai trò khách hàng thường.`)) return;
+    try {
+      await removeMemberFromAdmin(userId);
+      setTeamMembers(prev => prev.filter(m => m.id !== userId));
+    } catch (e: any) {
+      alert('Lỗi gỡ thành viên: ' + (e?.message || e));
+    }
+  }
 
   // Nhật ký thao tác admin
   const [activityLog, setActivityLog] = useState<ActivityLogRow[]>([]);
@@ -1126,7 +1214,13 @@ function AdminDashboard() {
               </>
             )}
             {activeTab === 'roles' && (
-              <button className="bg-emerald-500 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-emerald-600 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => { setInviteEmail(''); setInviteNote(''); setInviteRoleKey('staff'); setInviteError(null); setInviteModalOpen(true); }}
+                className="bg-emerald-500 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-emerald-600 flex items-center gap-1.5"
+                title={isOwner ? 'Mời thành viên mới' : 'Chỉ Owner mới mời được thành viên'}
+                disabled={!isOwner}
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
                 Mời thành viên
               </button>
@@ -2380,12 +2474,13 @@ function AdminDashboard() {
           {activeTab === 'roles' && (
             <div className="h-full overflow-y-auto p-6 bg-gray-50 space-y-6">
 
-              {/* 4 Role Cards */}
+              {/* 4 Role Cards — đếm từ live data */}
               <section>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">👥 4 Vai trò trong hệ thống</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {(Object.entries(ROLE_META) as [RoleKey, typeof ROLE_META[RoleKey]][]).map(([key, meta]) => {
-                    const members = TEAM_MEMBERS.filter(m => m.role === key);
+                    const members = teamMembers.filter(m => m.role_key === key);
+                    const pending = invitations.filter(i => i.role_key === key);
                     return (
                       <div key={key} className={`p-5 rounded-xl border-2 ${meta.badgeClass.replace('/10', '/5').replace('text-', 'border-')}`}>
                         <div className="flex items-center gap-2 mb-2">
@@ -2395,12 +2490,15 @@ function AdminDashboard() {
                         <p className="text-xs text-gray-600 leading-relaxed mb-3">{meta.description}</p>
                         <div className="pt-3 border-t border-gray-200">
                           <p className="text-[10px] uppercase font-bold text-gray-500 tracking-wide">Thành viên</p>
-                          <p className="text-lg font-bold text-gray-900 mt-1">{members.length} người</p>
+                          <p className="text-lg font-bold text-gray-900 mt-1">{members.length} người{pending.length > 0 && <span className="text-xs font-medium text-amber-600 ml-1">+{pending.length} chờ</span>}</p>
                           <div className="mt-1 space-y-0.5">
                             {members.map(m => (
                               <p key={m.id} className="text-xs text-gray-600 truncate">
-                                {m.status === 'invited' && '⏳ '}{m.name}
+                                {m.full_name || m.email || '(chưa đặt tên)'}
                               </p>
+                            ))}
+                            {pending.map(i => (
+                              <p key={i.id} className="text-xs text-amber-600 truncate">⏳ {i.email}</p>
                             ))}
                           </div>
                         </div>
@@ -2468,44 +2566,121 @@ function AdminDashboard() {
                 </div>
               </section>
 
-              {/* Danh sách thành viên */}
+              {/* Lời mời đang chờ */}
+              {invitations.length > 0 && (
+                <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-gray-800">⏳ Lời mời đang chờ ({invitations.length})</h4>
+                    <p className="text-xs text-gray-500">Lời mời tự động áp dụng khi người được mời tự signup bằng email tương ứng.</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                        <tr>
+                          <th className="text-left p-3 font-bold">Email</th>
+                          <th className="text-left p-3 font-bold">Role sẽ được gán</th>
+                          <th className="text-left p-3 font-bold">Người mời</th>
+                          <th className="text-left p-3 font-bold">Ngày mời</th>
+                          <th className="text-center p-3 font-bold"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {invitations.map(inv => {
+                          const rmeta = ROLE_META[inv.role_key as RoleKey];
+                          return (
+                            <tr key={inv.id} className="hover:bg-gray-50">
+                              <td className="p-3 font-medium text-gray-900">{inv.email}</td>
+                              <td className="p-3"><span className={`text-xs font-bold px-2 py-1 rounded border ${rmeta.badgeClass}`}>{rmeta.icon} {rmeta.label}</span></td>
+                              <td className="p-3 text-xs text-gray-600">{inv.invited_by_name || inv.invited_by_email || '(không rõ)'}</td>
+                              <td className="p-3 text-xs text-gray-500">{new Date(inv.invited_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                              <td className="p-3 text-center">
+                                {isOwner && (
+                                  <button onClick={() => handleRevokeInvite(inv.id)} className="text-xs text-red-600 hover:text-red-800 hover:underline font-medium">Thu hồi</button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {/* Danh sách thành viên đã kích hoạt */}
               <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-gray-100">
-                  <h4 className="text-sm font-bold text-gray-800">👤 Danh sách thành viên ({TEAM_MEMBERS.length})</h4>
+                <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-gray-800">👤 Thành viên đã kích hoạt ({teamMembers.length})</h4>
+                  {teamLoading && <span className="text-xs text-gray-500">Đang tải...</span>}
                 </div>
+                {teamError && (
+                  <div className="p-4 bg-red-50 border-b border-red-100 text-sm text-red-700">{teamError}</div>
+                )}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 text-xs uppercase text-gray-500">
                       <tr>
                         <th className="text-left p-3 font-bold">Thành viên</th>
+                        <th className="text-left p-3 font-bold">Email</th>
                         <th className="text-left p-3 font-bold">Role</th>
-                        <th className="text-left p-3 font-bold">Trạng thái</th>
-                        <th className="text-left p-3 font-bold">Hoạt động</th>
-                        <th className="text-left p-3 font-bold">Đóng góp</th>
+                        <th className="text-left p-3 font-bold">Ngày tham gia</th>
                         <th className="text-center p-3 font-bold"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {TEAM_MEMBERS.map(m => (
-                        <tr key={m.id} className="hover:bg-gray-50">
-                          <td className="p-3">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ${m.avatarColor}`}>{m.avatar}</div>
-                              <div>
-                                <p className="font-bold text-gray-900">{m.name}</p>
-                                <p className="text-xs text-gray-500">{m.email}</p>
-                              </div>
-                            </div>
+                      {teamMembers.length === 0 && !teamLoading && (
+                        <tr>
+                          <td colSpan={5} className="p-6 text-center text-sm text-gray-500 italic">
+                            Chưa có thành viên nào. Bấm "Mời thành viên" để bắt đầu.
                           </td>
-                          <td className="p-3"><span className={`text-xs font-bold px-2 py-1 rounded border ${ROLE_META[m.role].badgeClass}`}>{ROLE_META[m.role].icon} {ROLE_META[m.role].label}</span></td>
-                          <td className="p-3">
-                            {m.status === 'active' ? <span className="text-xs text-emerald-600 font-bold flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>Active</span> : <span className="text-xs text-amber-600 font-bold">⏳ Chờ kích hoạt</span>}
-                          </td>
-                          <td className="p-3 text-xs text-gray-600">{m.lastSeen}</td>
-                          <td className="p-3 text-xs font-medium text-gray-700">{m.contribution}</td>
-                          <td className="p-3 text-center"><button className="text-gray-400 hover:text-gray-700 p-1">⋯</button></td>
                         </tr>
-                      ))}
+                      )}
+                      {teamMembers.map(m => {
+                        const rk = (m.role_key || 'staff') as RoleKey;
+                        const rmeta = ROLE_META[rk];
+                        const initials = (m.full_name?.trim()?.[0] || m.email?.[0] || '?').toUpperCase();
+                        const isSelf = m.id === user?.id;
+                        return (
+                          <tr key={m.id} className="hover:bg-gray-50">
+                            <td className="p-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm">{initials}</div>
+                                <div>
+                                  <p className="font-bold text-gray-900">{m.full_name || '(chưa đặt tên)'} {isSelf && <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded ml-1">bạn</span>}</p>
+                                  <p className="text-xs text-gray-500">{m.phone || '—'}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3 text-sm text-gray-700">{m.email || <span className="text-gray-400 italic">chưa có log để lấy email</span>}</td>
+                            <td className="p-3">
+                              {isOwner && !isSelf ? (
+                                <select
+                                  value={rk}
+                                  onChange={(e) => handleChangeMemberRole(m.id, e.target.value as TeamRoleKey)}
+                                  className={`text-xs font-bold px-2 py-1 rounded border ${rmeta.badgeClass} cursor-pointer bg-transparent`}
+                                >
+                                  {(Object.keys(ROLE_META) as RoleKey[]).map(rk2 => (
+                                    <option key={rk2} value={rk2}>{ROLE_META[rk2].icon} {ROLE_META[rk2].label}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className={`text-xs font-bold px-2 py-1 rounded border ${rmeta.badgeClass}`}>{rmeta.icon} {rmeta.label}</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-xs text-gray-500">{new Date(m.created_at).toLocaleDateString('vi-VN')}</td>
+                            <td className="p-3 text-center">
+                              {isOwner && !isSelf && (
+                                <button
+                                  onClick={() => handleRemoveMember(m.id, m.full_name || m.email || m.id)}
+                                  className="text-xs text-red-600 hover:text-red-800 hover:underline font-medium"
+                                >
+                                  Gỡ khỏi admin
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -3166,6 +3341,97 @@ function AdminDashboard() {
           );
         })()}
       </div>
+
+      {/* MODAL: Mời thành viên */}
+      {inviteModalOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={() => !inviteSaving && setInviteModalOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">Mời thành viên mới</h3>
+              <button
+                onClick={() => setInviteModalOpen(false)}
+                disabled={inviteSaving}
+                className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 rounded transition-colors disabled:opacity-50"
+                aria-label="Đóng"
+              >✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-gray-600 leading-relaxed bg-blue-50 border border-blue-100 rounded-md p-3">
+                💡 Người được mời sẽ tự vào <code className="bg-white px-1 rounded font-mono">/register</code> bằng đúng email này để signup. Khi tài khoản được tạo, họ sẽ tự động có quyền admin với role đã chọn — không cần thao tác thêm.
+              </p>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Email <span className="text-red-500">*</span></label>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => { setInviteEmail(e.target.value); setInviteError(null); }}
+                  placeholder="ten@example.com"
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  autoFocus
+                  disabled={inviteSaving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Role <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.entries(ROLE_META) as [RoleKey, typeof ROLE_META[RoleKey]][]).map(([k, meta]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setInviteRoleKey(k)}
+                      disabled={inviteSaving}
+                      className={`px-3 py-2 rounded-md border-2 text-left transition-colors ${inviteRoleKey === k ? meta.badgeClass.replace('/10', '/5').replace('text-', 'border-') + ' bg-opacity-100' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">{meta.icon}</span>
+                        <span className="text-sm font-bold text-gray-900">{meta.label}</span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 leading-tight">{meta.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Ghi chú <span className="text-gray-400 normal-case font-normal">(tùy chọn)</span></label>
+                <input
+                  type="text"
+                  value={inviteNote}
+                  onChange={(e) => setInviteNote(e.target.value)}
+                  placeholder="VD: Nhân viên mới team QC"
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  disabled={inviteSaving}
+                />
+              </div>
+
+              {inviteError && (
+                <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md p-2">{inviteError}</p>
+              )}
+
+              <div className="flex items-center gap-2 justify-end pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setInviteModalOpen(false)}
+                  disabled={inviteSaving}
+                  className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateInvite}
+                  disabled={inviteSaving || !inviteEmail.trim()}
+                  className="px-3 py-2 text-sm font-bold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed"
+                >
+                  {inviteSaving ? 'Đang tạo...' : 'Tạo lời mời'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: Sửa tên hiển thị admin */}
       {nameEditOpen && (

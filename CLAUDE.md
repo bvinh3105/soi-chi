@@ -121,6 +121,16 @@ mật khẩu mới (`updateUser({password})`). Cả 2 hàm nằm trong `src/lib/
 `/register`), sidebar sẽ show phần trước `@` của email. Bấm icon bút chì cạnh tên để đổi
 (gọi `updateProfile()` → RLS `"Users update own profile"` cho phép ghi).
 
+**Mời thành viên + role_key (từ 2026-09-20)**: Migration 011 thêm cột `profiles.role_key`
+(`owner`/`manager`/`staff`/`accountant`) + bảng `invitations` + trigger auto-apply. Cơ chế:
+Owner mở tab "Phân quyền" → "Mời thành viên" → nhập email + role → tạo row invitation. Người
+được mời tự vào `/register` với email đó → trigger `apply_pending_invitation` promote profile
+lên `role='admin'` + gán `role_key`. Chỉ Owner (role_key='owner') được mời/đổi role/gỡ
+thành viên khác — RLS `"Owner update any profile role"` lo phần đó. `role='admin'` (auth
+level) và `role_key` (permission level) là 2 khái niệm khác nhau: `role='admin'` là điều kiện
+duy nhất để `is_admin()` = true (dùng cho mọi RLS admin-only), `role_key` chỉ để phân sub-role
+hiển thị trong UI. 3 admin gốc tự động được set `role_key='owner'` khi chạy migration.
+
 **Nhật ký thao tác admin (từ 2026-09-20)**: Migration 010 tạo bảng `admin_activity_log`.
 Log 9 loại action: `login`, `logout`, `view_order`, `drag_order`, `delete_order`,
 `create_product`, `update_product`, `delete_product`, `update_profile`. Helper trong

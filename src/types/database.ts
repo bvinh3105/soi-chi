@@ -26,6 +26,7 @@ export interface Database {
           phone: string;
           avatar_url: string;
           role: UserRole;
+          role_key: "owner" | "manager" | "staff" | "accountant" | null;
           created_at: string;
           updated_at: string;
         };
@@ -35,12 +36,43 @@ export interface Database {
           phone?: string;
           avatar_url?: string;
           role?: UserRole;
+          role_key?: "owner" | "manager" | "staff" | "accountant" | null;
         };
         Update: {
           full_name?: string;
           phone?: string;
           avatar_url?: string;
           role?: UserRole;
+          role_key?: "owner" | "manager" | "staff" | "accountant" | null;
+        };
+      };
+      invitations: {
+        Row: {
+          id: string;
+          email: string;
+          role_key: "owner" | "manager" | "staff" | "accountant";
+          invited_by: string | null;
+          invited_at: string;
+          used_at: string | null;
+          used_by: string | null;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          note: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          role_key: "owner" | "manager" | "staff" | "accountant";
+          invited_by?: string | null;
+          note?: string;
+        };
+        Update: {
+          role_key?: "owner" | "manager" | "staff" | "accountant";
+          used_at?: string | null;
+          used_by?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          note?: string;
         };
       };
       addresses: {
