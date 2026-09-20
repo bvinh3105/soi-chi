@@ -22,6 +22,7 @@ interface AuthState {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
+  updateProfile: (updates: { full_name?: string; phone?: string; avatar_url?: string }) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -138,6 +139,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function updateProfile(updates: { full_name?: string; phone?: string; avatar_url?: string }) {
+    const sb = getSupabaseSafe();
+    if (!sb || !user) return { error: "Chưa đăng nhập." };
+    try {
+      const client = sb as unknown as { from: (t: string) => any };
+      const { data, error } = await client
+        .from("profiles")
+        .update(updates)
+        .eq("id", user.id)
+        .select()
+        .single();
+      if (error) return { error: error.message };
+      if (data) setProfile(data as Profile);
+      return { error: null };
+    } catch {
+      return { error: "Không thể kết nối server. Vui lòng thử lại sau." };
+    }
+  }
+
   async function signOut() {
     const sb = getSupabaseSafe();
     if (sb) {
@@ -163,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         resetPassword,
         updatePassword,
+        updateProfile,
       }}
     >
       {children}

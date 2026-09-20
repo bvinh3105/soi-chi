@@ -99,7 +99,13 @@ console.log('OK:', text.includes('etbtzznxkedbdeihoqmp'), '| BỊ ĐÈ:', text.i
   NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_CK2IR45EDqvhVGBSGNgTzQ_QZKK3q59
   ```
 - 3 tài khoản Admin thật (Supabase Auth, role=admin trong bảng `profiles`): bachvinhtran@gmail.com,
-  hthaoan0108@gmail.com, mienman.stu@gmail.com
+  hthaoan0108@gmail.com, và tài khoản studio (đã đổi Gmail 2026-09-20 từ `mienman.stu@gmail.com`
+  sang `soichi.stu@gmail.com` — cần đổi email tài khoản Supabase Auth qua Dashboard, xem note dưới)
+
+**Đổi email admin studio (2026-09-20)**: gmail cũ `mienman.stu@gmail.com` → mới `soichi.stu@gmail.com`.
+Supabase Auth chưa tự nhận biết → phải vào Dashboard → Authentication → Users → click vào tài khoản
+mienman.stu → Change Email → nhập soichi.stu@gmail.com → Save. Row `profiles` giữ nguyên (chỉ đổi
+email trong `auth.users`, id không đổi nên role admin vẫn còn).
 - Đăng nhập Admin: `/login` bằng 1 trong 3 email trên — **không còn "mã nội bộ"**, đã gỡ bỏ vĩnh viễn
   (hash lộ trong bundle, không an toàn, và không tương thích RLS `is_admin()`). Đừng khôi phục lại.
 
@@ -108,6 +114,12 @@ console.log('OK:', text.includes('etbtzznxkedbdeihoqmp'), '| BỊ ĐÈ:', text.i
 hash, xem `user` trong `useAuth()` — nếu null nghĩa là link hết hạn/không hợp lệ) → form đặt
 mật khẩu mới (`updateUser({password})`). Cả 2 hàm nằm trong `src/lib/auth.tsx`
 (`resetPassword`, `updatePassword`), theo đúng pattern các hàm auth khác trong file.
+
+**Tên hiển thị admin (từ 2026-09-20)**: `src/app/admin/page.tsx` không còn hardcode
+"Trần Bảo Vinh" — đọc từ `profile.full_name` qua `useAuth()`. Nếu 1 admin mới đăng nhập lần
+đầu và profile chưa có `full_name` (VD tạo trực tiếp qua Supabase Dashboard, không qua form
+`/register`), sidebar sẽ show phần trước `@` của email. Bấm icon bút chì cạnh tên để đổi
+(gọi `updateProfile()` → RLS `"Users update own profile"` cho phép ghi).
 
 **Bắt buộc set up 1 lần trên Supabase Dashboard** (chưa làm — cần làm để tính năng hoạt động):
 vào Authentication → URL Configuration → Redirect URLs, thêm `https://soi-chi.pages.dev/reset-password`

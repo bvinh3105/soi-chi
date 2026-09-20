@@ -29,6 +29,7 @@ import { CSS } from '@dnd-kit/utilities';
 import GitProgressTracker, { type ProgressStep } from '@/components/GitProgressTracker';
 import { useProducts, createProduct, updateProduct, deleteProduct, type ProductInput } from '@/lib/products';
 import { deleteOrder } from '@/lib/orders';
+import { useAuth } from '@/lib/auth';
 import {
   DAILY_REVENUE,
   MONTHLY_PL,
@@ -366,9 +367,28 @@ export default function AdminPage() {
 }
 
 type AdminTab = 'overview' | 'orders' | 'products' | 'customers' | 'history' | 'accounting' | 'roles';
-const CURRENT_ROLE: RoleKey = 'owner'; // TODO: lấy từ Supabase session ở Step 2
+const CURRENT_ROLE: RoleKey = 'owner'; // Mặc định — cho tới khi thêm bảng phân quyền chi tiết. AdminGuard đã đảm bảo mọi ai đến đây đều có profiles.role='admin'.
+
+function computeInitials(name: string, fallbackEmail?: string | null): string {
+  const trimmed = (name || '').trim();
+  if (trimmed) {
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    if (words.length === 1) return words[0].charAt(0).toUpperCase();
+    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+  }
+  if (fallbackEmail) return fallbackEmail.charAt(0).toUpperCase();
+  return '?';
+}
 
 function AdminDashboard() {
+  const { user, profile, updateProfile, signOut } = useAuth();
+  const displayName = profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Admin';
+  const displayInitials = computeInitials(profile?.full_name || '', user?.email);
+  const [nameEditOpen, setNameEditOpen] = useState(false);
+  const [nameEditValue, setNameEditValue] = useState('');
+  const [nameEditSaving, setNameEditSaving] = useState(false);
+  const [nameEditError, setNameEditError] = useState<string | null>(null);
+
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [orders, setOrders] = useState(INITIAL_ORDERS);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -402,6 +422,29 @@ function AdminDashboard() {
     setDeleteOrderConfirmText('');
     setDeleteOrderError(null);
   };
+
+  function openNameEdit() {
+    setNameEditValue(profile?.full_name || '');
+    setNameEditError(null);
+    setNameEditOpen(true);
+  }
+
+  async function handleSaveName() {
+    const name = nameEditValue.trim();
+    if (!name) {
+      setNameEditError('Tên không được để trống.');
+      return;
+    }
+    setNameEditSaving(true);
+    setNameEditError(null);
+    const { error } = await updateProfile({ full_name: name });
+    setNameEditSaving(false);
+    if (error) {
+      setNameEditError(error);
+    } else {
+      setNameEditOpen(false);
+    }
+  }
 
   async function handleDeleteOrder() {
     if (!orderModal) return;
@@ -810,10 +853,11 @@ function AdminDashboard() {
     try {
       // Cập nhật DB
       await supabase.from('orders').update({ status: dbStatus }).eq('id', order.id);
-      // Ghi log order_history
+      // Ghi log order_history — kèm changed_by để biết admin nào đã kéo
       await supabase.from('order_history').insert({
         order_id: order.id,
         to_status: dbStatus,
+        changed_by: user?.id ?? null,
         note: `Chuyển cột Kanban → ${dbStatus}`,
       });
     } catch {
@@ -915,12 +959,33 @@ function AdminDashboard() {
 
         <div className="p-4 border-t border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-lg shrink-0">V</div>
+            <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-lg shrink-0" title={user?.email || ''}>{displayInitials}</div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-gray-900 truncate">Trần Bảo Vinh</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-bold text-gray-900 truncate">{displayName}</p>
+                <button
+                  type="button"
+                  onClick={openNameEdit}
+                  aria-label="Sửa tên hiển thị"
+                  title="Sửa tên hiển thị"
+                  className="p-0.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors shrink-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              </div>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${ROLE_META[CURRENT_ROLE].badgeClass}`}>{ROLE_META[CURRENT_ROLE].icon} {ROLE_META[CURRENT_ROLE].label}</span>
+                <button
+                  type="button"
+                  onClick={() => signOut().then(() => { window.location.href = '/'; })}
+                  className="text-[10px] text-gray-500 hover:text-red-600 hover:underline transition-colors ml-auto"
+                >
+                  Đăng xuất
+                </button>
               </div>
+              <p className="text-[10px] text-gray-400 truncate mt-0.5">{user?.email}</p>
             </div>
           </div>
         </div>
@@ -2860,6 +2925,60 @@ function AdminDashboard() {
           );
         })()}
       </div>
+
+      {/* MODAL: Sửa tên hiển thị admin */}
+      {nameEditOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={() => !nameEditSaving && setNameEditOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">Sửa tên hiển thị</h3>
+              <button
+                onClick={() => setNameEditOpen(false)}
+                disabled={nameEditSaving}
+                className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 rounded transition-colors disabled:opacity-50"
+                aria-label="Đóng"
+              >✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Tên hiển thị</label>
+                <input
+                  type="text"
+                  value={nameEditValue}
+                  onChange={(e) => { setNameEditValue(e.target.value); setNameEditError(null); }}
+                  placeholder="VD: Trần Bách Vinh"
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  autoFocus
+                  disabled={nameEditSaving}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !nameEditSaving) handleSaveName(); }}
+                />
+                <p className="text-[11px] text-gray-500 mt-1">Tên này hiển thị trong sidebar admin và trong lịch sử thao tác (khi có).</p>
+              </div>
+              {nameEditError && (
+                <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md p-2">{nameEditError}</p>
+              )}
+              <div className="flex items-center gap-2 justify-end pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setNameEditOpen(false)}
+                  disabled={nameEditSaving}
+                  className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveName}
+                  disabled={nameEditSaving || !nameEditValue.trim()}
+                  className="px-3 py-2 text-sm font-bold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed"
+                >
+                  {nameEditSaving ? 'Đang lưu...' : 'Lưu'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
