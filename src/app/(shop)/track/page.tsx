@@ -59,7 +59,7 @@ function TrackForm() {
       <header className="bg-white border-b border-sage-100 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-4">
           <Link href="/">
-            <img src="/logo.png" alt="Sợi chỉ" className="h-8 w-auto" />
+            <img src="/logo.svg" alt="Sợi chỉ" className="h-8 w-auto" />
           </Link>
           <span className="text-sage-300">/</span>
           <span className="text-sm text-sage-600">Tra cứu đơn hàng</span>

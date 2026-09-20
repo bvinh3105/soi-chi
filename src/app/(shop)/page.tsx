@@ -78,7 +78,7 @@ export default function HomePage() {
       <header className="bg-white/80 backdrop-blur-sm border-b border-sage-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/">
-            <img src="/logo.png" alt="Sợi chỉ" className="h-8 w-auto" />
+            <img src="/logo.svg" alt="Sợi chỉ" className="h-8 w-auto" />
           </Link>
           <nav className="hidden md:flex items-center gap-8">
             {categories.map((cat) => (
@@ -379,7 +379,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="col-span-2 md:col-span-1">
-              <img src="/logo.png" alt="Sợi chỉ" className="h-7 w-auto mb-3" style={{filter:'brightness(0) invert(1)'}} />
+              <img src="/logo.svg" alt="Sợi chỉ" className="h-7 w-auto mb-3" style={{filter:'brightness(0) invert(1)'}} />
               <p className="text-white/50 text-sm leading-relaxed">
                 Thêu tay thủ công<br />theo yêu cầu riêng của bạn
               </p>
