@@ -1,6 +1,15 @@
-# Miên Man — Hướng dẫn làm việc
+# Sợi chỉ — Hướng dẫn làm việc
 
 Dự án web thêu tay thủ công. Next.js 14 (static export) + Supabase + Cloudflare Pages.
+
+> **Rebrand 2026-09-20**: "Miên Man" đã đổi tên thành **"Sợi chỉ"** (slug ASCII: `soi-chi`).
+> - GitHub repo: `bvinh3105/soi-chi` (đã rename, GitHub redirect URL cũ)
+> - Cloudflare Pages project: **giữ nguyên `mien-man`** — CF không hỗ trợ rename project, đổi
+>   sẽ mất URL `mien-man.pages.dev`. Nên tên project + URL vẫn là "mien-man" mặc dù thương hiệu
+>   đã đổi. Nếu muốn domain mới, cần add custom domain trong CF Pages settings.
+> - Local directory: vẫn là `G:\...\Projects\mien-man\` (không rename để tránh phá link/path).
+> - Order prefix: đơn cũ giữ `MM-XXX`, đơn mới sẽ là `SC-XXX` sau khi chạy migration 008.
+> - Admin Gmail `mienman.stu@gmail.com` vẫn giữ (không rename Gmail được).
 Code này được sửa từ **2 máy khác nhau** (nhà + công ty), mỗi máy có phiên Claude Code riêng.
 Đọc kỹ phần dưới TRƯỚC KHI code hoặc deploy để tránh lặp lại các sự cố đã từng xảy ra.
 
@@ -46,7 +55,7 @@ nguy cơ conflict.
 **Không cần chạy `wrangler deploy` thủ công nữa.** Mỗi lần `git push` lên `master`,
 `.github/workflows/deploy.yml` tự chạy: `npm ci` → `npm run build` (với env vars lấy từ
 GitHub Secrets, KHÔNG phải Cloudflare Dashboard) → `wrangler pages deploy`. Xem tiến độ tại
-`https://github.com/bvinh3105/mien-man/actions`.
+`https://github.com/bvinh3105/soi-chi/actions`.
 
 **Cloudflare Pages "Automatic Deployments" đã bị TẮT** (Settings → Builds & deployments →
 Branch control → uncheck "Enable automatic production branch deployments" + Preview branch =
@@ -82,7 +91,8 @@ console.log('OK:', text.includes('etbtzznxkedbdeihoqmp'), '| BỊ ĐÈ:', text.i
 
 ## Supabase
 
-- Project: "miên man" — `etbtzznxkedbdeihoqmp.supabase.co`
+- Project: "miên man" (tên trong Supabase Dashboard) — `etbtzznxkedbdeihoqmp.supabase.co`
+  (giữ nguyên tên project bên Supabase — chỉ là label, không ảnh hưởng gì đến app)
 - `.env.local` (không commit — mỗi máy tự tạo file này, publishable key nên an toàn ghi thẳng ở đây):
   ```
   NEXT_PUBLIC_SUPABASE_URL=https://etbtzznxkedbdeihoqmp.supabase.co
@@ -95,7 +105,7 @@ console.log('OK:', text.includes('etbtzznxkedbdeihoqmp'), '| BỊ ĐÈ:', text.i
 
 ### Thay đổi schema/RLS
 Viết thành file migration mới trong `supabase/migrations/`, đánh số thứ tự tiếp theo (hiện đã có
-001–007). Không sửa trực tiếp `schema.sql` cho phần đã deploy — chỉ cập nhật `schema.sql` để phản ánh
+001–008). Không sửa trực tiếp `schema.sql` cho phần đã deploy — chỉ cập nhật `schema.sql` để phản ánh
 state mới nhất (dùng cho project mới tạo từ đầu). Chạy migration trong Supabase Dashboard → SQL Editor,
 tab query mới mỗi lần.
 

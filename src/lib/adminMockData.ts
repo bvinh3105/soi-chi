@@ -67,12 +67,12 @@ export const EXPENSE_ENTRIES = [
 
 // Sổ thu chi tiết (dùng lại từ ORDER_HISTORY nhưng thêm trạng thái thu tiền)
 export const INCOME_ENTRIES = [
-  { date: '28/08', orderId: 'MM-0038', customer: 'Thảo Lê', item: 'Vỏ gối Linen (x5)', amount: 1200000, method: 'VNPAY', collected: true },
-  { date: '25/08', orderId: 'MM-0035', customer: 'Minh Tú', item: 'Túi Tote Canvas (x1)', amount: 350000, method: 'MOMO', collected: true },
-  { date: '24/08', orderId: 'MM-0033', customer: 'Hà Phương', item: 'Áo Phông Thêu Logo (x3)', amount: 1350000, method: 'VNPAY', collected: true },
-  { date: '22/08', orderId: 'MM-0031', customer: 'Đức Anh', item: 'Mũ Bucket Custom', amount: 250000, method: 'COD', collected: false },
-  { date: '18/08', orderId: 'MM-0025', customer: 'Ngọc Trinh', item: 'Túi Tote Hoa Hồng', amount: 380000, method: 'COD', collected: true },
-  { date: '15/08', orderId: 'MM-0022', customer: 'Văn Hùng', item: 'Áo Polo Thêu Tên (x5)', amount: 2250000, method: 'VNPAY', collected: true },
+  { date: '28/08', orderId: 'SC-0038', customer: 'Thảo Lê', item: 'Vỏ gối Linen (x5)', amount: 1200000, method: 'VNPAY', collected: true },
+  { date: '25/08', orderId: 'SC-0035', customer: 'Minh Tú', item: 'Túi Tote Canvas (x1)', amount: 350000, method: 'MOMO', collected: true },
+  { date: '24/08', orderId: 'SC-0033', customer: 'Hà Phương', item: 'Áo Phông Thêu Logo (x3)', amount: 1350000, method: 'VNPAY', collected: true },
+  { date: '22/08', orderId: 'SC-0031', customer: 'Đức Anh', item: 'Mũ Bucket Custom', amount: 250000, method: 'COD', collected: false },
+  { date: '18/08', orderId: 'SC-0025', customer: 'Ngọc Trinh', item: 'Túi Tote Hoa Hồng', amount: 380000, method: 'COD', collected: true },
+  { date: '15/08', orderId: 'SC-0022', customer: 'Văn Hùng', item: 'Áo Polo Thêu Tên (x5)', amount: 2250000, method: 'VNPAY', collected: true },
 ];
 
 // Bestsellers tuần
@@ -96,7 +96,7 @@ export const PRODUCT_STATS = [
 export const STOCK_ALERTS = [
   { name: 'Vải lụa hồng', current: 4.5, unit: 'm', threshold: 5, severity: 'danger' as const, note: 'Cần đặt lại NCC' },
   { name: 'Túi vải thêu hạc', current: 8, unit: 'chiếc', threshold: 10, severity: 'warning' as const, note: 'Lên kế hoạch sản xuất mới' },
-  { name: 'Chỉ thêu DMC #4213 (đỏ)', current: 2, unit: 'cuộn', threshold: 5, severity: 'warning' as const, note: 'Đơn MM-0040 đang chờ' },
+  { name: 'Chỉ thêu DMC #4213 (đỏ)', current: 2, unit: 'cuộn', threshold: 5, severity: 'warning' as const, note: 'Đơn SC-0040 đang chờ' },
 ];
 
 // Segmentation khách hàng (RFM)
@@ -127,7 +127,7 @@ export const ACQUISITION_CHANNELS = [
 
 // Cảnh báo cho tab Tổng quan
 export const OVERVIEW_ALERTS = [
-  { level: 'danger' as const,  icon: '🔴', msg: 'Đơn MM-0040 (Bảo Trần) tạm dừng do hết chỉ đỏ #42R',        cta: 'Xử lý ngay',        link: 'orders' },
+  { level: 'danger' as const,  icon: '🔴', msg: 'Đơn SC-0040 (Bảo Trần) tạm dừng do hết chỉ đỏ #42R',        cta: 'Xử lý ngay',        link: 'orders' },
   { level: 'warning' as const, icon: '🟡', msg: 'Vải lụa hồng còn <5m — dự báo hết trước 03/09',              cta: 'Đặt bổ sung',       link: 'products' },
   { level: 'warning' as const, icon: '🟡', msg: 'Túi vải thêu hạc còn 8 chiếc — nhu cầu tuần tới ~10',        cta: 'Lên kế hoạch',      link: 'products' },
 ];
@@ -164,10 +164,10 @@ export const ROLE_META: Record<RoleKey, { label: string; icon: string; badgeClas
 // Team members
 export const TEAM_MEMBERS = [
   { id: 'u1', name: 'Trần Bảo Vinh',     email: 'vinhtb@growly.life',        role: 'owner' as RoleKey,      status: 'active' as const,  lastSeen: 'Đang online', contribution: '47 đơn tạo',        avatar: 'V',  avatarColor: 'bg-brand text-white' },
-  { id: 'u2', name: 'Nguyễn Thị Hương',  email: 'huong.nguyen@mienman.vn',   role: 'manager' as RoleKey,    status: 'active' as const,  lastSeen: '10 phút trước', contribution: '38 đơn duyệt',    avatar: 'H',  avatarColor: 'bg-blue-100 text-blue-700' },
-  { id: 'u3', name: 'Lê Thị Mai',        email: 'mai.le@mienman.vn',         role: 'staff' as RoleKey,      status: 'active' as const,  lastSeen: '2 giờ trước',   contribution: '34 đơn thêu',     avatar: 'M',  avatarColor: 'bg-amber-100 text-amber-700' },
-  { id: 'u4', name: 'Phạm Văn Đức',      email: 'duc.pham@mienman.vn',       role: 'staff' as RoleKey,      status: 'active' as const,  lastSeen: 'Hôm qua',       contribution: '28 đơn đóng gói', avatar: 'Đ',  avatarColor: 'bg-amber-100 text-amber-700' },
-  { id: 'u5', name: 'Vũ Thị Lan',        email: 'lan.vu@mienman.vn',         role: 'accountant' as RoleKey, status: 'invited' as const, lastSeen: 'Chưa kích hoạt', contribution: '—',              avatar: 'L',  avatarColor: 'bg-gray-100 text-gray-500' },
+  { id: 'u2', name: 'Nguyễn Thị Hương',  email: 'huong.nguyen@soichi.vn',   role: 'manager' as RoleKey,    status: 'active' as const,  lastSeen: '10 phút trước', contribution: '38 đơn duyệt',    avatar: 'H',  avatarColor: 'bg-blue-100 text-blue-700' },
+  { id: 'u3', name: 'Lê Thị Mai',        email: 'mai.le@soichi.vn',         role: 'staff' as RoleKey,      status: 'active' as const,  lastSeen: '2 giờ trước',   contribution: '34 đơn thêu',     avatar: 'M',  avatarColor: 'bg-amber-100 text-amber-700' },
+  { id: 'u4', name: 'Phạm Văn Đức',      email: 'duc.pham@soichi.vn',       role: 'staff' as RoleKey,      status: 'active' as const,  lastSeen: 'Hôm qua',       contribution: '28 đơn đóng gói', avatar: 'Đ',  avatarColor: 'bg-amber-100 text-amber-700' },
+  { id: 'u5', name: 'Vũ Thị Lan',        email: 'lan.vu@soichi.vn',         role: 'accountant' as RoleKey, status: 'invited' as const, lastSeen: 'Chưa kích hoạt', contribution: '—',              avatar: 'L',  avatarColor: 'bg-gray-100 text-gray-500' },
 ];
 
 // Ma trận permissions

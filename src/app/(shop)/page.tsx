@@ -78,7 +78,7 @@ export default function HomePage() {
       <header className="bg-white/80 backdrop-blur-sm border-b border-sage-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-2xl font-display font-bold text-charcoal tracking-wide">
-            Miên Man
+            Sợi chỉ
           </Link>
           <nav className="hidden md:flex items-center gap-8">
             {categories.map((cat) => (
@@ -295,7 +295,7 @@ export default function HomePage() {
 
       {/* ─── CATEGORIES ──────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 py-16">
-        <h2 className="text-3xl font-display font-bold text-center text-charcoal mb-10">Dịch vụ thêu của Miên Man</h2>
+        <h2 className="text-3xl font-display font-bold text-center text-charcoal mb-10">Dịch vụ thêu của Sợi chỉ</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {categories.map((cat) => (
             <Link key={cat.id} href={`/?category=${cat.slug}`} className="bg-white rounded-2xl border border-sage-100 p-6 text-center hover:shadow-md hover:border-sage-300 transition group">
@@ -379,7 +379,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="col-span-2 md:col-span-1">
-              <h3 className="font-display text-2xl font-semibold mb-3">Miên Man</h3>
+              <h3 className="font-display text-2xl font-semibold mb-3">Sợi chỉ</h3>
               <p className="text-white/50 text-sm leading-relaxed">
                 Thêu tay thủ công<br />theo yêu cầu riêng của bạn
               </p>
@@ -414,7 +414,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="border-t border-white/10 mt-10 pt-6 text-center text-xs text-white/30">
-            © 2026 Miên Man.
+            © 2026 Sợi chỉ.
           </div>
         </div>
       </footer>

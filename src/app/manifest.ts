@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Miên Man — Thêu tay thủ công',
-    short_name: 'Miên Man',
+    name: 'Sợi chỉ — Thêu tay thủ công',
+    short_name: 'Sợi chỉ',
     description: 'Thêu tay thủ công lên tranh, quần áo, túi — hoặc tự tay thêu với bộ kit DIY',
     start_url: '/',
     display: 'standalone',

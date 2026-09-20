@@ -21,7 +21,7 @@ function SuccessContent() {
 
         <h1 className="text-2xl font-display font-bold text-charcoal mb-2">Đặt hàng thành công!</h1>
         <p className="text-sage-600 text-sm mb-6">
-          Miên Man đã nhận được đơn của bạn và sẽ xác nhận sớm nhất có thể.
+          Sợi chỉ đã nhận được đơn của bạn và sẽ xác nhận sớm nhất có thể.
         </p>
 
         {/* Mã đơn */}

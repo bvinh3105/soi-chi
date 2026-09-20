@@ -110,7 +110,7 @@ export default function CheckoutPage() {
       {/* Navbar */}
       <header className="bg-white border-b border-sage-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href="/" className="text-xl font-display font-bold text-charcoal">Miên Man</Link>
+          <Link href="/" className="text-xl font-display font-bold text-charcoal">Sợi chỉ</Link>
           <span className="text-sage-300">/</span>
           <span className="text-sm text-sage-600">Thanh toán</span>
         </div>
@@ -313,7 +313,7 @@ export default function CheckoutPage() {
           </button>
 
           <p className="text-center text-xs text-sage-400">
-            Bằng cách đặt hàng, bạn đồng ý với chính sách đổi trả của Miên Man.
+            Bằng cách đặt hàng, bạn đồng ý với chính sách đổi trả của Sợi chỉ.
           </p>
         </form>
 

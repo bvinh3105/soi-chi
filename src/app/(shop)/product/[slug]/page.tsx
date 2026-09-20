@@ -26,7 +26,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
       <header className="bg-white/80 backdrop-blur-sm border-b border-sage-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-2xl font-display font-semibold text-charcoal tracking-wide">
-            Miên Man
+            Sợi chỉ
           </Link>
           <Link href="/" className="text-sm text-sage-600 hover:text-sage-800 hover:underline transition">
             &larr; Quay lại

@@ -58,7 +58,7 @@ function TrackForm() {
     <div className="min-h-screen bg-cream">
       <header className="bg-white border-b border-sage-100 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href="/" className="text-xl font-display font-bold text-charcoal">Miên Man</Link>
+          <Link href="/" className="text-xl font-display font-bold text-charcoal">Sợi chỉ</Link>
           <span className="text-sage-300">/</span>
           <span className="text-sm text-sage-600">Tra cứu đơn hàng</span>
         </div>
@@ -69,7 +69,7 @@ function TrackForm() {
         {/* Search box */}
         <div className="bg-white rounded-xl border border-sage-100 p-6 shadow-sm">
           <h1 className="text-lg font-display font-semibold text-charcoal mb-1">Tra cứu đơn hàng</h1>
-          <p className="text-xs text-sage-500 mb-5">Nhập mã đơn (ví dụ: MM-001) và số điện thoại đặt hàng.</p>
+          <p className="text-xs text-sage-500 mb-5">Nhập mã đơn (ví dụ: SC-001, hoặc MM-XXX cho đơn cũ) và số điện thoại đặt hàng.</p>
 
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -78,7 +78,7 @@ function TrackForm() {
                 <input
                   value={orderNumber}
                   onChange={e => setOrderNumber(e.target.value.toUpperCase())}
-                  placeholder="MM-001"
+                  placeholder="SC-001"
                   required
                   className="w-full px-3 py-2.5 border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-400 text-sm font-mono uppercase"
                 />
@@ -157,7 +157,7 @@ function TrackForm() {
 
               {result.status === "cancelled" && (
                 <div className="bg-red-50 rounded-lg p-3 text-sm text-red-700 mt-2">
-                  Đơn hàng đã bị hủy. Liên hệ Miên Man để được hỗ trợ.
+                  Đơn hàng đã bị hủy. Liên hệ Sợi chỉ để được hỗ trợ.
                 </div>
               )}
             </div>
@@ -237,7 +237,7 @@ function TrackForm() {
             {/* Liên hệ */}
             <div className="bg-sage-50 rounded-xl border border-sage-200 p-4 text-center">
               <p className="text-sm text-sage-700 font-medium mb-1">Cần hỗ trợ thêm?</p>
-              <p className="text-xs text-sage-500">Nhắn Zalo <span className="font-semibold">0901 234 567</span> hoặc inbox fanpage Miên Man</p>
+              <p className="text-xs text-sage-500">Nhắn Zalo <span className="font-semibold">0901 234 567</span> hoặc inbox fanpage Sợi chỉ</p>
             </div>
           </div>
         )}

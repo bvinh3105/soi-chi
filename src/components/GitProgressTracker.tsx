@@ -17,7 +17,7 @@ interface GitProgressTrackerProps {
   compact?: boolean;
 }
 
-export default function GitProgressTracker({ orderId = 'MM-8492', steps = [], compact = false }: GitProgressTrackerProps) {
+export default function GitProgressTracker({ orderId = 'SC-8492', steps = [], compact = false }: GitProgressTrackerProps) {
   const getStatusColor = (status: StepStatus) => {
     switch (status) {
       case 'working': return 'bg-blue-500';

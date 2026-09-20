@@ -15,19 +15,21 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: 'Miên Man — Thêu tay thủ công',
-    template: '%s | Miên Man',
+    default: 'Sợi chỉ — Thêu tay thủ công',
+    template: '%s | Sợi chỉ',
   },
-  description: 'Thêu tay thủ công lên tranh, quần áo, túi — hoặc tự tay thêu với bộ kit DIY của Miên Man',
+  description: 'Thêu tay thủ công lên tranh, quần áo, túi — hoặc tự tay thêu với bộ kit DIY của Sợi chỉ',
   keywords: ['thêu tay', 'handmade', 'thêu thủ công', 'tranh thêu', 'kit DIY', 'miên man'],
-  authors: [{ name: 'Miên Man' }],
-  creator: 'Miên Man',
+  authors: [{ name: 'Sợi chỉ' }],
+  creator: 'Sợi chỉ',
+  // Cloudflare Pages project name stuck at "mien-man" (CF không cho rename project),
+  // nên URL mien-man.pages.dev giữ nguyên dù thương hiệu đã đổi thành "Sợi chỉ".
   metadataBase: new URL('https://mien-man.pages.dev'),
   openGraph: {
     type: 'website',
     locale: 'vi_VN',
-    siteName: 'Miên Man',
-    title: 'Miên Man — Thêu tay thủ công',
+    siteName: 'Sợi chỉ',
+    title: 'Sợi chỉ — Thêu tay thủ công',
     description: 'Mỗi mũi thêu, một câu chuyện riêng. Thêu tay thủ công lên tranh, quần áo và túi.',
   },
   icons: {
@@ -39,7 +41,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Miên Man',
+    title: 'Sợi chỉ',
   },
   formatDetection: {
     telephone: true,
