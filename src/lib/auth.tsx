@@ -20,6 +20,8 @@ interface AuthState {
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -112,6 +114,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function resetPassword(email: string) {
+    const sb = getSupabaseSafe();
+    if (!sb) return { error: "Chức năng đặt lại mật khẩu đang được cập nhật. Vui lòng thử lại sau." };
+    try {
+      const { error } = await sb.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      return { error: error?.message ?? null };
+    } catch {
+      return { error: "Không thể kết nối server. Vui lòng thử lại sau." };
+    }
+  }
+
+  async function updatePassword(password: string) {
+    const sb = getSupabaseSafe();
+    if (!sb) return { error: "Chức năng đặt lại mật khẩu đang được cập nhật. Vui lòng thử lại sau." };
+    try {
+      const { error } = await sb.auth.updateUser({ password });
+      return { error: error?.message ?? null };
+    } catch {
+      return { error: "Không thể kết nối server. Vui lòng thử lại sau." };
+    }
+  }
+
   async function signOut() {
     const sb = getSupabaseSafe();
     if (sb) {
@@ -135,6 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signIn,
         signOut,
+        resetPassword,
+        updatePassword,
       }}
     >
       {children}

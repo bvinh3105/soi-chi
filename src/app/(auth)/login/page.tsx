@@ -66,7 +66,10 @@ function LoginForm() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-sage-700">Mật khẩu</label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-sage-700">Mật khẩu</label>
+              <Link href="/forgot-password" className="text-sm text-sage-600 hover:text-sage-800 hover:underline transition">Quên mật khẩu?</Link>
+            </div>
             <div className="relative mt-1">
               <input
                 id="password"

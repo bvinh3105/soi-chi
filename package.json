@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "pages:deploy": "npx wrangler pages deploy out --project-name=mien-man",
+    "pages:deploy": "npx wrangler pages deploy out --project-name=soi-chi --commit-dirty=true",
     "start": "next start",
     "lint": "next lint"
   },

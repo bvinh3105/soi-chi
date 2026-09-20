@@ -103,6 +103,18 @@ console.log('OK:', text.includes('etbtzznxkedbdeihoqmp'), '| BỊ ĐÈ:', text.i
 - Đăng nhập Admin: `/login` bằng 1 trong 3 email trên — **không còn "mã nội bộ"**, đã gỡ bỏ vĩnh viễn
   (hash lộ trong bundle, không an toàn, và không tương thích RLS `is_admin()`). Đừng khôi phục lại.
 
+**Tính năng "Quên mật khẩu" (từ 2026-09-20)**: `/forgot-password` (nhập email →
+`resetPasswordForEmail`) → email link → `/reset-password` (Supabase tự detect session từ URL
+hash, xem `user` trong `useAuth()` — nếu null nghĩa là link hết hạn/không hợp lệ) → form đặt
+mật khẩu mới (`updateUser({password})`). Cả 2 hàm nằm trong `src/lib/auth.tsx`
+(`resetPassword`, `updatePassword`), theo đúng pattern các hàm auth khác trong file.
+
+**Bắt buộc set up 1 lần trên Supabase Dashboard** (chưa làm — cần làm để tính năng hoạt động):
+vào Authentication → URL Configuration → Redirect URLs, thêm `https://soi-chi.pages.dev/reset-password`
+(và `http://localhost:3000/reset-password` nếu muốn test local). Thiếu bước này, Supabase sẽ
+từ chối redirect kèm token → link trong email dẫn về trang chủ không có session, `/reset-password`
+sẽ luôn báo "Link không hợp lệ".
+
 ### Thay đổi schema/RLS
 Viết thành file migration mới trong `supabase/migrations/`, đánh số thứ tự tiếp theo (hiện đã có
 001–008). Không sửa trực tiếp `schema.sql` cho phần đã deploy — chỉ cập nhật `schema.sql` để phản ánh
