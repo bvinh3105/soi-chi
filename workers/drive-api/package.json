@@ -1,5 +1,5 @@
 {
-  "name": "mien-man-drive",
+  "name": "soi-chi-drive",
   "private": true,
   "scripts": {
     "dev": "wrangler dev",

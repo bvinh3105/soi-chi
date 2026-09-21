@@ -36,6 +36,9 @@ prisma/dev.db-journal
 # wrangler
 .wrangler/
 
+# Workspace-local logo asset staging (raw exports, not deployed)
+0. Logo/
+
 # vercel
 .vercel
 

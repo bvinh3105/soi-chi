@@ -1,5 +1,5 @@
 -- ============================================================
--- MIÊN MAN — Database Schema for Supabase (PostgreSQL)
+-- SỢI CHỈ — Database Schema for Supabase (PostgreSQL)
 -- ============================================================
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- ============================================================

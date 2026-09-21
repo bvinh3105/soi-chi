@@ -7,9 +7,15 @@ Dự án web thêu tay thủ công. Next.js 14 (static export) + Supabase + Clou
 > - Cloudflare Pages project: **`soi-chi`** — URL production giờ là `https://soi-chi.pages.dev`.
 >   Project cũ `mien-man` (URL `soi-chi.pages.dev`) được **giữ lại** làm archive, không deploy
 >   nữa (frozen ở version 2026-09-20). Nếu muốn xoá hẳn, vào CF Dashboard → Pages → mien-man → Settings → Delete project.
-> - Local directory: vẫn là `G:\...\Projects\mien-man\` (không rename để tránh phá link/path).
+> - Local directory: `G:\...\Projects\soi-chi\` (đã rename từ `mien-man/` ngày 2026-09-21).
+>   Máy còn lại phải rename theo: `git status` để đảm bảo clean → đóng terminal/IDE → rename
+>   thư mục qua Explorer → mở lại. Repo git ok vì `.git` di chuyển theo.
 > - Order prefix: đơn cũ giữ `MM-XXX`, đơn mới sẽ là `SC-XXX` sau khi chạy migration 008.
-> - Admin Gmail `mienman.stu@gmail.com` vẫn giữ (không rename Gmail được).
+> - Admin Gmail cũ `mienman.stu@gmail.com` đã đổi sang `soichi.stu@gmail.com` (2026-09-20).
+> - Logo SVG cập nhật 2026-09-21 (Asset 16 = icon vuông, Asset 17 = logo ngang). Các file
+>   PNG icon (favicon/PWA 192/512, apple-icon) đã bỏ — dùng SVG cho mọi kích cỡ. Nếu cần
+>   PNG cho iOS home-screen, export từ Illustrator/Figma với các kích cỡ 32/180/192/512
+>   rồi thêm lại vào `public/` + reference trong `src/app/manifest.ts`.
 Code này được sửa từ **2 máy khác nhau** (nhà + công ty), mỗi máy có phiên Claude Code riêng.
 Đọc kỹ phần dưới TRƯỚC KHI code hoặc deploy để tránh lặp lại các sự cố đã từng xảy ra.
 

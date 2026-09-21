@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     template: '%s | Sợi chỉ',
   },
   description: 'Thêu tay thủ công lên tranh, quần áo, túi — hoặc tự tay thêu với bộ kit DIY của Sợi chỉ',
-  keywords: ['thêu tay', 'handmade', 'thêu thủ công', 'tranh thêu', 'kit DIY', 'miên man'],
+  keywords: ['thêu tay', 'handmade', 'thêu thủ công', 'tranh thêu', 'kit DIY', 'sợi chỉ'],
   authors: [{ name: 'Sợi chỉ' }],
   creator: 'Sợi chỉ',
   metadataBase: new URL('https://soi-chi.pages.dev'),
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },
     ],
-    apple: '/icon-192.png',
+    apple: '/icon.svg',
   },
   appleWebApp: {
     capable: true,

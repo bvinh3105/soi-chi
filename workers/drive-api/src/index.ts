@@ -1,5 +1,5 @@
 // ============================================================
-// Miên Man — Google Drive API Worker
+// Sợi chỉ — Google Drive API Worker
 // Cloudflare Worker làm cầu nối giữa web app và Google Drive
 // ============================================================
 

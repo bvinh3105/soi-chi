@@ -7,7 +7,7 @@
 
 -- 1. Tạo admin user qua Supabase Auth API (chạy bằng Dashboard hoặc curl)
 -- Lưu ý: Supabase Auth user tạo bằng Dashboard > Authentication > Users > Add user
--- Email: admin@mienman.vn / Password: admin123456
+-- Email: admin@soichi.vn / Password: admin123456
 -- Sau đó chạy lệnh dưới để set role = admin:
 
 -- Nếu đã tạo user qua Dashboard, update role:
@@ -15,7 +15,7 @@
 
 -- Hoặc dùng Supabase local: đăng ký qua UI rồi chạy:
 -- UPDATE public.profiles SET role = 'admin'
--- WHERE full_name = 'Admin Miên Man';
+-- WHERE full_name = 'Admin Sợi chỉ';
 
 -- ============================================================
 -- 2. Seed products (10 sản phẩm khớp với data.ts hiện tại)

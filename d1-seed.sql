@@ -1,13 +1,13 @@
--- Seed data for D1
--- Run after migration: npx wrangler d1 execute mien-man-db --remote --file=./d1-seed.sql
+-- Seed data for D1 (LEGACY — dự án đã rollback từ D1 về Supabase 2026-09-08)
+-- Run after migration: npx wrangler d1 execute soi-chi-db --remote --file=./d1-seed.sql
 
 -- Admin (password: admin123, bcrypt hash)
 INSERT OR IGNORE INTO "User" (id, email, hashedPassword, fullName, role, createdAt, updatedAt)
-VALUES ('admin001', 'admin@mienman.vn', '$2a$12$LJ3a4PBfMfN3.DGM8z5H4eVrYKJ3vGz1jFQOaH5rU5K.YFVxq8bXq', 'Admin', 'admin', datetime('now'), datetime('now'));
+VALUES ('admin001', 'admin@soichi.vn', '$2a$12$LJ3a4PBfMfN3.DGM8z5H4eVrYKJ3vGz1jFQOaH5rU5K.YFVxq8bXq', 'Admin', 'admin', datetime('now'), datetime('now'));
 
 -- Customer (password: test123, bcrypt hash)
 INSERT OR IGNORE INTO "User" (id, email, hashedPassword, fullName, phone, role, createdAt, updatedAt)
-VALUES ('cust001', 'khach@mienman.vn', '$2a$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Khách Test', '0901234567', 'customer', datetime('now'), datetime('now'));
+VALUES ('cust001', 'khach@soichi.vn', '$2a$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Khách Test', '0901234567', 'customer', datetime('now'), datetime('now'));
 
 -- Categories
 INSERT OR IGNORE INTO "Category" (id, name, slug, description, sortOrder, isActive, createdAt)
