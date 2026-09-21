@@ -3,13 +3,15 @@
 // ============================================================
 // LandingBlocks — render Puck blocks trên trang chủ shop
 // ============================================================
-// Fetch client-side khi mount. Nếu DB rỗng → không render gì (trang
-// chủ giữ layout gốc). Nếu có content → dynamic import Puck's Render
-// (giữ trang chủ không phải ship Puck runtime 90KB cho visitor thường).
+// Đây là toàn bộ nội dung landing (từ 2026-09-21) — thay thế toàn bộ
+// hero/categories/products hardcoded cũ. Nếu DB rỗng thì fallback vào
+// DEFAULT_LANDING (giao diện gốc), nên trang chủ không bao giờ trắng.
+// Puck runtime + config load qua dynamic import để không cost initial
+// bundle khi visitor mới ghé.
 
 import { useEffect, useState, type ComponentType } from "react";
 import type { Data } from "@measured/puck";
-import { fetchLandingContent } from "@/lib/landing";
+import { fetchLandingContent, DEFAULT_LANDING } from "@/lib/landing";
 
 interface RendererProps {
   data: Data;
@@ -21,12 +23,9 @@ export default function LandingBlocks() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchLandingContent().then(async d => {
-      if (cancelled) return;
-      if (!d?.content || d.content.length === 0) {
-        setData(d);
-        return;
-      }
+    (async () => {
+      const fetched = await fetchLandingContent().catch(() => null);
+      const finalData = fetched && fetched.content && fetched.content.length > 0 ? fetched : DEFAULT_LANDING;
       const [{ Render }, { puckConfig }] = await Promise.all([
         import("@measured/puck"),
         import("./puckConfig"),
@@ -34,11 +33,15 @@ export default function LandingBlocks() {
       if (cancelled) return;
       const Wrapped: ComponentType<RendererProps> = ({ data: rd }) => <Render config={puckConfig} data={rd} />;
       setRenderer(() => Wrapped);
-      setData(d);
-    });
+      setData(finalData);
+    })();
     return () => { cancelled = true; };
   }, []);
 
-  if (!data || !data.content || data.content.length === 0 || !Renderer) return null;
+  if (!data || !Renderer) {
+    // Trong lúc chờ Puck load, hiện placeholder skeleton để layout không nhảy
+    return <div className="min-h-screen bg-cream" aria-hidden />;
+  }
+
   return <Renderer data={data} />;
 }

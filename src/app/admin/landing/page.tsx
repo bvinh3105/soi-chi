@@ -6,7 +6,7 @@ import AdminGuard from "@/components/AdminGuard";
 import { Puck, type Data } from "@measured/puck";
 import "@measured/puck/puck.css";
 import { puckConfig } from "@/components/puckConfig";
-import { EMPTY_LANDING, fetchLandingContent, saveLandingContent } from "@/lib/landing";
+import { EMPTY_LANDING, DEFAULT_LANDING, fetchLandingContent, saveLandingContent } from "@/lib/landing";
 import { useAuth } from "@/lib/auth";
 
 function LandingEditor() {
@@ -18,8 +18,17 @@ function LandingEditor() {
 
   useEffect(() => {
     fetchLandingContent()
-      .then(d => setInitial(d || EMPTY_LANDING))
-      .catch(() => setInitial(EMPTY_LANDING));
+      .then(d => {
+        // Nếu DB rỗng → nạp DEFAULT_LANDING (giao diện hiện tại) cho admin
+        // thấy ngay layout đang có, sửa/kéo/xóa block thoải mái. Cần bấm
+        // Publish để lưu vào DB.
+        if (!d || !d.content || d.content.length === 0) {
+          setInitial(DEFAULT_LANDING);
+        } else {
+          setInitial(d);
+        }
+      })
+      .catch(() => setInitial(DEFAULT_LANDING));
   }, []);
 
   async function handlePublish(data: Data) {

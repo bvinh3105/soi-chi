@@ -121,11 +121,19 @@ mật khẩu mới (`updateUser({password})`). Cả 2 hàm nằm trong `src/lib/
 `/register`), sidebar sẽ show phần trước `@` của email. Bấm icon bút chì cạnh tên để đổi
 (gọi `updateProfile()` → RLS `"Users update own profile"` cho phép ghi).
 
-**Landing block editor với Puck (từ 2026-09-20)**: Migration 012 tạo bảng `landing_content`
-(1 row id='home', jsonb `data`). Owner vào `/admin/landing` → mở Puck editor kéo thả block
-(Hero, FeatureBullets, CtaBanner, TextSection). Bấm **Publish** → lưu qua RLS admin-only.
-Trang chủ (`/`) render các block đó phía trên hero cũ qua `<LandingBlocks />` — dynamic
-import Puck runtime chỉ khi DB có content nên visitor thường không phải tải thêm ~90KB.
+**Landing block editor với Puck (từ 2026-09-21, mở rộng từ 2026-09-20)**: Migration 012 tạo
+bảng `landing_content` (1 row id='home', jsonb `data`). Owner vào `/admin/landing` mở Puck
+editor. Từ 2026-09-21 toàn bộ nội dung landing (Hero, Features, ProcessSteps, CategoriesGrid,
+ProductGrid, CTA) đã được convert thành 8 block Puck — code JSX cũ trong `(shop)/page.tsx`
+đã xóa, chỉ giữ Navbar (có CartBar + AccountBadge state) và Footer hardcode. Editor và public
+page đều fallback vào `DEFAULT_LANDING` (trong `src/lib/landing.ts`) khi DB rỗng — nên trang
+chủ không bao giờ trắng dù DB chưa có row hoặc admin xóa hết.
+
+**Block dynamic vs static**: `CategoriesGrid`/`ProductGrid` là DYNAMIC — chúng đọc `categories`/
+`products` từ `src/lib/data.ts` (sau này sẽ đọc từ Supabase). Admin chỉ chỉnh tiêu đề/subtitle/
+maxItems, KHÔNG sửa từng sản phẩm trong editor. Sản phẩm sửa qua tab "Sản phẩm" trong admin
+như bình thường. Các block khác (Hero, FeatureBullets, ProcessSteps, CtaBanner, TextSection)
+là STATIC — text/ảnh do admin nhập, save vào Puck data.
 
 Thêm block mới: sửa `src/components/puckConfig.tsx` — thêm 1 entry vào `components: {...}`
 với `fields` (schema), `defaultProps`, và `render` (React component). TypeScript của Puck
