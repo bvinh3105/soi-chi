@@ -46,7 +46,7 @@ export default function HomePage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.svg" alt="Sợi chỉ" className="h-7 w-auto mb-3" style={{ filter: 'brightness(0) invert(1)' }} />
               <p className="text-white/50 text-sm leading-relaxed">
-                Thêu tay thủ công<br />theo yêu cầu riêng của bạn
+                Bạn thấy điều gì<br />Qua từng khung hình
               </p>
             </div>
             <div>
