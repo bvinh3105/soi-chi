@@ -46,6 +46,69 @@ export interface Database {
           role_key?: "owner" | "manager" | "staff" | "accountant" | null;
         };
       };
+      raw_materials: {
+        Row: {
+          id: string;
+          name: string;
+          category: string;
+          unit: string;
+          min_stock: number;
+          notes: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          category?: string;
+          unit?: string;
+          min_stock?: number;
+          notes?: string;
+          is_active?: boolean;
+        };
+        Update: {
+          name?: string;
+          category?: string;
+          unit?: string;
+          min_stock?: number;
+          notes?: string;
+          is_active?: boolean;
+        };
+      };
+      material_receipts: {
+        Row: {
+          id: string;
+          material_id: string;
+          quantity: number;
+          unit_price: number | null;
+          kind: "in" | "out" | "adjust";
+          supplier: string;
+          receipt_date: string;
+          note: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          material_id: string;
+          quantity: number;
+          unit_price?: number | null;
+          kind?: "in" | "out" | "adjust";
+          supplier?: string;
+          receipt_date?: string;
+          note?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          quantity?: number;
+          unit_price?: number | null;
+          kind?: "in" | "out" | "adjust";
+          supplier?: string;
+          receipt_date?: string;
+          note?: string;
+        };
+      };
       landing_content: {
         Row: {
           id: string;

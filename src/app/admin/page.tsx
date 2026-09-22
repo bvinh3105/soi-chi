@@ -33,6 +33,13 @@ import { useAuth } from '@/lib/auth';
 import { logActivity, fetchActivityLog, ACTION_LABELS, ACTION_COLORS, type ActivityLogRow } from '@/lib/activityLog';
 import { fetchTeamMembers, fetchInvitations, createInvitation, revokeInvitation, updateMemberRoleKey, removeMemberFromAdmin, type TeamMember, type Invitation, type RoleKey as TeamRoleKey } from '@/lib/team';
 import {
+  fetchMaterials, fetchReceipts, computeStocks,
+  createMaterial, updateMaterial, archiveMaterial,
+  createReceipt, deleteReceipt,
+  kindLabel,
+  type RawMaterial, type MaterialReceipt, type MaterialWithStock, type MaterialKind,
+} from '@/lib/materials';
+import {
   DAILY_REVENUE,
   MONTHLY_PL,
   EXPENSE_BREAKDOWN,
@@ -376,6 +383,153 @@ function AdminDashboard() {
   const [deleteOrderConfirmText, setDeleteOrderConfirmText] = useState('');
   const [deleteOrderInFlight, setDeleteOrderInFlight] = useState(false);
   const [deleteOrderError, setDeleteOrderError] = useState<string | null>(null);
+
+  // Nguyên liệu (kho)
+  const [productsSubTab, setProductsSubTab] = useState<'san-pham' | 'nguyen-lieu'>('san-pham');
+  const [materials, setMaterials] = useState<RawMaterial[]>([]);
+  const [receipts, setReceipts] = useState<MaterialReceipt[]>([]);
+  const [materialsLoading, setMaterialsLoading] = useState(false);
+  const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [materialEditOpen, setMaterialEditOpen] = useState(false);
+  const [materialEditData, setMaterialEditData] = useState<Partial<RawMaterial> | null>(null);
+  const [materialSaving, setMaterialSaving] = useState(false);
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [receiptForm, setReceiptForm] = useState<{
+    material_id: string;
+    kind: MaterialKind;
+    quantity: string;          // string vì input
+    unit_price: string;
+    supplier: string;
+    receipt_date: string;
+    note: string;
+    adjust_sign: 'up' | 'down';
+  }>({ material_id: '', kind: 'in', quantity: '', unit_price: '', supplier: '', receipt_date: new Date().toISOString().slice(0, 10), note: '', adjust_sign: 'up' });
+  const [receiptSaving, setReceiptSaving] = useState(false);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [materialFilter, setMaterialFilter] = useState<'all' | 'low'>('all');
+
+  const materialsWithStock: MaterialWithStock[] = React.useMemo(
+    () => computeStocks(materials, receipts),
+    [materials, receipts]
+  );
+  const lowStockMaterials = materialsWithStock.filter(m => m.is_low);
+
+  async function loadMaterials() {
+    setMaterialsLoading(true);
+    setMaterialsError(null);
+    try {
+      const [mats, rec] = await Promise.all([fetchMaterials(), fetchReceipts(undefined, 500)]);
+      setMaterials(mats);
+      setReceipts(rec);
+    } catch (e: any) {
+      setMaterialsError(e?.message || 'Không tải được nguyên liệu. Có thể migration 013 chưa chạy.');
+    } finally {
+      setMaterialsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'products' && productsSubTab === 'nguyen-lieu') loadMaterials();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, productsSubTab]);
+
+  function openNewMaterial() {
+    setMaterialEditData({ name: '', category: '', unit: 'chiếc', min_stock: 0, notes: '' });
+    setMaterialEditOpen(true);
+  }
+  function openEditMaterial(m: RawMaterial) {
+    setMaterialEditData({ ...m });
+    setMaterialEditOpen(true);
+  }
+  async function handleSaveMaterial() {
+    if (!materialEditData) return;
+    if (!materialEditData.name?.trim()) { alert('Cần nhập tên nguyên liệu'); return; }
+    setMaterialSaving(true);
+    try {
+      if (materialEditData.id) {
+        const upd = await updateMaterial(materialEditData.id, {
+          name: materialEditData.name,
+          category: materialEditData.category ?? '',
+          unit: materialEditData.unit ?? 'chiếc',
+          min_stock: Number(materialEditData.min_stock ?? 0),
+          notes: materialEditData.notes ?? '',
+        });
+        setMaterials(prev => prev.map(m => m.id === upd.id ? upd : m));
+      } else {
+        const created = await createMaterial({
+          name: materialEditData.name,
+          category: materialEditData.category ?? '',
+          unit: materialEditData.unit ?? 'chiếc',
+          min_stock: Number(materialEditData.min_stock ?? 0),
+          notes: materialEditData.notes ?? '',
+        });
+        setMaterials(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      }
+      setMaterialEditOpen(false);
+    } catch (e: any) {
+      alert('Lỗi: ' + (e?.message || e));
+    } finally {
+      setMaterialSaving(false);
+    }
+  }
+  async function handleArchiveMaterial(m: RawMaterial) {
+    if (!confirm(`Ẩn "${m.name}" khỏi danh sách? Lịch sử receipts vẫn giữ.`)) return;
+    try {
+      await archiveMaterial(m.id);
+      setMaterials(prev => prev.filter(x => x.id !== m.id));
+    } catch (e: any) {
+      alert('Lỗi: ' + (e?.message || e));
+    }
+  }
+
+  function openReceiptModal(materialId?: string) {
+    setReceiptForm({
+      material_id: materialId || materials[0]?.id || '',
+      kind: 'in',
+      quantity: '',
+      unit_price: '',
+      supplier: '',
+      receipt_date: new Date().toISOString().slice(0, 10),
+      note: '',
+      adjust_sign: 'up',
+    });
+    setReceiptError(null);
+    setReceiptModalOpen(true);
+  }
+  async function handleSaveReceipt() {
+    if (!receiptForm.material_id) { setReceiptError('Chọn nguyên liệu'); return; }
+    const qty = Number(receiptForm.quantity);
+    if (!qty || qty <= 0) { setReceiptError('Số lượng phải > 0'); return; }
+    setReceiptSaving(true);
+    setReceiptError(null);
+    try {
+      const rec = await createReceipt({
+        material_id: receiptForm.material_id,
+        kind: receiptForm.kind,
+        quantity: qty,
+        unit_price: receiptForm.kind === 'in' && receiptForm.unit_price ? Number(receiptForm.unit_price) : null,
+        supplier: receiptForm.supplier,
+        receipt_date: receiptForm.receipt_date,
+        note: receiptForm.note,
+        adjust_sign: receiptForm.adjust_sign,
+      }, user?.id);
+      setReceipts(prev => [rec, ...prev]);
+      setReceiptModalOpen(false);
+    } catch (e: any) {
+      setReceiptError(e?.message || 'Lỗi lưu receipt');
+    } finally {
+      setReceiptSaving(false);
+    }
+  }
+  async function handleDeleteReceipt(id: string) {
+    if (!confirm('Xóa bản ghi này? Tồn kho sẽ tính lại.')) return;
+    try {
+      await deleteReceipt(id);
+      setReceipts(prev => prev.filter(r => r.id !== id));
+    } catch (e: any) {
+      alert('Lỗi: ' + (e?.message || e));
+    }
+  }
 
   // Phân quyền + Invitations
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -1258,7 +1412,13 @@ function AdminDashboard() {
                 <button className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-gray-800">Tạo đơn thủ công</button>
               </div>
             )}
-            {activeTab === 'products' && <button className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-blue-700" onClick={() => setProductModal({})}>+ Thêm sản phẩm</button>}
+            {activeTab === 'products' && productsSubTab === 'san-pham' && <button className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-blue-700" onClick={() => setProductModal({})}>+ Thêm sản phẩm</button>}
+            {activeTab === 'products' && productsSubTab === 'nguyen-lieu' && (
+              <div className="flex items-center gap-2">
+                <button onClick={openNewMaterial} className="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-md text-sm font-bold hover:bg-gray-50">+ Nguyên liệu</button>
+                <button onClick={() => openReceiptModal()} disabled={materials.length === 0} className="bg-emerald-600 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed">+ Nhập / Xuất</button>
+              </div>
+            )}
             {activeTab === 'customers' && <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-bold hover:bg-gray-50 flex items-center gap-2">Xuất CSV</button>}
             {activeTab === 'history' && (
               <>
@@ -1676,6 +1836,27 @@ function AdminDashboard() {
           {activeTab === 'products' && (
             <div className="h-full overflow-y-auto p-6 bg-gray-50 space-y-6">
 
+              {/* Sub-tabs: Sản phẩm vs Nguyên liệu */}
+              <div className="flex items-center gap-1 border-b border-gray-200 -mx-6 px-6 pb-0">
+                <button
+                  onClick={() => setProductsSubTab('san-pham')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${productsSubTab === 'san-pham' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+                >
+                  🧵 Sản phẩm
+                </button>
+                <button
+                  onClick={() => setProductsSubTab('nguyen-lieu')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${productsSubTab === 'nguyen-lieu' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+                >
+                  📦 Nguyên liệu
+                  {lowStockMaterials.length > 0 && (
+                    <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">{lowStockMaterials.length} sắp hết</span>
+                  )}
+                </button>
+              </div>
+
+              {productsSubTab === 'san-pham' && <>
+
               {/* Quick metrics */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
@@ -1878,6 +2059,159 @@ function AdminDashboard() {
                   </div>
                 )}
               </div>
+
+              </>}
+
+              {productsSubTab === 'nguyen-lieu' && (
+                <div className="space-y-6">
+                  {/* Metric cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                      <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Tổng nguyên liệu</h3>
+                      <p className="text-2xl font-bold text-gray-900">{materials.length}</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                      <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Sắp hết</h3>
+                      <p className="text-2xl font-bold text-red-600">{lowStockMaterials.length}</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                      <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Giao dịch 500 gần nhất</h3>
+                      <p className="text-2xl font-bold text-gray-900">{receipts.length}</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                      <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Tổng giá trị nhập</h3>
+                      <p className="text-2xl font-bold text-emerald-600">
+                        {formatVnd(receipts.reduce((s, r) => s + (r.kind === 'in' && r.unit_price ? Number(r.quantity) * Number(r.unit_price) : 0), 0))}
+                      </p>
+                    </div>
+                  </div>
+
+                  {materialsError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{materialsError}</div>
+                  )}
+
+                  {/* Filter chips */}
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setMaterialFilter('all')} className={`text-xs font-bold px-3 py-1.5 rounded-full ${materialFilter === 'all' ? 'bg-emerald-100 text-emerald-700' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>Tất cả ({materialsWithStock.length})</button>
+                    <button onClick={() => setMaterialFilter('low')} className={`text-xs font-bold px-3 py-1.5 rounded-full ${materialFilter === 'low' ? 'bg-red-100 text-red-700' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>Sắp hết ({lowStockMaterials.length})</button>
+                    <button onClick={loadMaterials} className="ml-auto text-xs text-blue-600 font-medium hover:underline">↻ Tải lại</button>
+                  </div>
+
+                  {/* Materials table */}
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-gray-100">
+                      <h4 className="text-sm font-bold text-gray-800">📦 Danh sách nguyên liệu {materialsLoading && <span className="text-xs font-normal text-gray-500 ml-2">Đang tải...</span>}</h4>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                          <tr>
+                            <th className="text-left p-3 font-bold">Tên</th>
+                            <th className="text-left p-3 font-bold">Loại</th>
+                            <th className="text-right p-3 font-bold">Tồn kho</th>
+                            <th className="text-right p-3 font-bold">Ngưỡng cảnh báo</th>
+                            <th className="text-right p-3 font-bold">Giá TB nhập</th>
+                            <th className="text-left p-3 font-bold">Nguồn gần nhất</th>
+                            <th className="text-center p-3 font-bold">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {(materialFilter === 'low' ? materialsWithStock.filter(m => m.is_low) : materialsWithStock).length === 0 && !materialsLoading && (
+                            <tr><td colSpan={7} className="p-8 text-center text-sm text-gray-500 italic">
+                              {materials.length === 0 ? 'Chưa có nguyên liệu nào. Bấm "+ Nguyên liệu" để thêm.' : materialFilter === 'low' ? 'Không có nguyên liệu nào dưới ngưỡng.' : 'Không có kết quả.'}
+                            </td></tr>
+                          )}
+                          {(materialFilter === 'low' ? materialsWithStock.filter(m => m.is_low) : materialsWithStock).map(m => (
+                            <tr key={m.id} className={`hover:bg-gray-50 ${m.is_low ? 'bg-red-50/30' : ''}`}>
+                              <td className="p-3">
+                                <p className="font-bold text-gray-900">{m.name}</p>
+                                {m.notes && <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-1">{m.notes}</p>}
+                              </td>
+                              <td className="p-3 text-xs text-gray-600">{m.category || '—'}</td>
+                              <td className="p-3 text-right">
+                                <span className={`font-bold ${m.is_low ? 'text-red-600' : 'text-gray-900'}`}>{m.current_stock.toLocaleString('vi-VN')}</span>
+                                <span className="text-xs text-gray-500 ml-1">{m.unit}</span>
+                                {m.is_low && <div className="text-[10px] font-bold text-red-600 mt-0.5">⚠ dưới ngưỡng</div>}
+                              </td>
+                              <td className="p-3 text-right text-xs text-gray-500">
+                                {m.min_stock > 0 ? `${m.min_stock.toLocaleString('vi-VN')} ${m.unit}` : '—'}
+                              </td>
+                              <td className="p-3 text-right text-xs">
+                                {m.avg_unit_price != null ? <span className="font-medium text-emerald-700">{formatVnd(Math.round(m.avg_unit_price))}/{m.unit}</span> : <span className="text-gray-400">—</span>}
+                              </td>
+                              <td className="p-3 text-xs text-gray-600">
+                                {m.last_supplier || '—'}
+                                {m.last_receipt_date && <div className="text-[10px] text-gray-400 mt-0.5">{new Date(m.last_receipt_date).toLocaleDateString('vi-VN')}</div>}
+                              </td>
+                              <td className="p-3 text-center whitespace-nowrap">
+                                <button onClick={() => openReceiptModal(m.id)} className="text-xs text-emerald-700 font-bold hover:underline mr-3">+/-</button>
+                                <button onClick={() => openEditMaterial(m)} className="text-xs text-blue-600 font-medium hover:underline mr-3">Sửa</button>
+                                <button onClick={() => handleArchiveMaterial(m)} className="text-xs text-gray-500 hover:text-red-600 hover:underline">Ẩn</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Recent receipts */}
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-gray-100">
+                      <h4 className="text-sm font-bold text-gray-800">📋 Lịch sử nhập/xuất gần đây ({receipts.length})</h4>
+                    </div>
+                    <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 text-xs uppercase text-gray-500 sticky top-0">
+                          <tr>
+                            <th className="text-left p-3 font-bold">Ngày</th>
+                            <th className="text-left p-3 font-bold">Nguyên liệu</th>
+                            <th className="text-left p-3 font-bold">Loại</th>
+                            <th className="text-right p-3 font-bold">Số lượng</th>
+                            <th className="text-right p-3 font-bold">Đơn giá</th>
+                            <th className="text-left p-3 font-bold">Nguồn / Ghi chú</th>
+                            <th className="text-center p-3 font-bold"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {receipts.length === 0 && !materialsLoading && (
+                            <tr><td colSpan={7} className="p-6 text-center text-sm text-gray-500 italic">Chưa có giao dịch nào.</td></tr>
+                          )}
+                          {receipts.map(r => {
+                            const mat = materials.find(m => m.id === r.material_id);
+                            const qtyDisplay = Math.abs(Number(r.quantity)).toLocaleString('vi-VN');
+                            const sign = Number(r.quantity) >= 0 ? '+' : '−';
+                            const kindColor = r.kind === 'in' ? 'bg-emerald-50 text-emerald-700' : r.kind === 'out' ? 'bg-amber-50 text-amber-700' : 'bg-purple-50 text-purple-700';
+                            return (
+                              <tr key={r.id} className="hover:bg-gray-50">
+                                <td className="p-3 text-xs text-gray-600 whitespace-nowrap">{new Date(r.receipt_date).toLocaleDateString('vi-VN')}</td>
+                                <td className="p-3 font-medium text-gray-900">{mat?.name || '(đã xóa)'}</td>
+                                <td className="p-3"><span className={`text-[10px] font-bold px-2 py-0.5 rounded ${kindColor}`}>{kindLabel(r.kind)}</span></td>
+                                <td className="p-3 text-right whitespace-nowrap">
+                                  <span className={`font-bold ${Number(r.quantity) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{sign} {qtyDisplay}</span>
+                                  <span className="text-xs text-gray-500 ml-1">{mat?.unit}</span>
+                                </td>
+                                <td className="p-3 text-right text-xs whitespace-nowrap">
+                                  {r.unit_price != null ? <>{formatVnd(Math.round(Number(r.unit_price)))}<div className="text-[10px] text-gray-400">= {formatVnd(Math.round(Math.abs(Number(r.quantity)) * Number(r.unit_price)))}</div></> : <span className="text-gray-400">—</span>}
+                                </td>
+                                <td className="p-3 text-xs text-gray-600 max-w-xs">
+                                  {r.supplier && <span className="font-medium text-gray-800">{r.supplier}</span>}
+                                  {r.supplier && r.note && ' · '}
+                                  {r.note && <span className="text-gray-500">{r.note}</span>}
+                                  {!r.supplier && !r.note && <span className="text-gray-400">—</span>}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <button onClick={() => handleDeleteReceipt(r.id)} className="text-xs text-gray-400 hover:text-red-600" title="Xóa (tồn kho sẽ tính lại)">×</button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -3348,6 +3682,224 @@ function AdminDashboard() {
           );
         })()}
       </div>
+
+      {/* MODAL: Thêm / Sửa nguyên liệu */}
+      {materialEditOpen && materialEditData && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={() => !materialSaving && setMaterialEditOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">{materialEditData.id ? 'Sửa nguyên liệu' : 'Thêm nguyên liệu mới'}</h3>
+              <button onClick={() => setMaterialEditOpen(false)} disabled={materialSaving} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Tên <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={materialEditData.name ?? ''}
+                  onChange={(e) => setMaterialEditData({ ...materialEditData, name: e.target.value })}
+                  placeholder="VD: Vải lụa hồng, Chỉ DMC #42R..."
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  autoFocus
+                  disabled={materialSaving}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Loại</label>
+                  <input
+                    type="text"
+                    value={materialEditData.category ?? ''}
+                    onChange={(e) => setMaterialEditData({ ...materialEditData, category: e.target.value })}
+                    placeholder="Vải / Chỉ / Khung / Kim..."
+                    className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    list="material-category-suggestions"
+                    disabled={materialSaving}
+                  />
+                  <datalist id="material-category-suggestions">
+                    <option value="Vải" /><option value="Chỉ" /><option value="Khung" /><option value="Kim" /><option value="Phụ kiện" /><option value="Bao bì" />
+                  </datalist>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Đơn vị</label>
+                  <input
+                    type="text"
+                    value={materialEditData.unit ?? 'chiếc'}
+                    onChange={(e) => setMaterialEditData({ ...materialEditData, unit: e.target.value })}
+                    placeholder="m / cuộn / chiếc / gói..."
+                    className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    list="material-unit-suggestions"
+                    disabled={materialSaving}
+                  />
+                  <datalist id="material-unit-suggestions">
+                    <option value="m" /><option value="cuộn" /><option value="chiếc" /><option value="gói" /><option value="hộp" /><option value="kg" /><option value="g" />
+                  </datalist>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Ngưỡng cảnh báo (min stock)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={String(materialEditData.min_stock ?? 0)}
+                  onChange={(e) => setMaterialEditData({ ...materialEditData, min_stock: Number(e.target.value) })}
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  disabled={materialSaving}
+                />
+                <p className="text-[11px] text-gray-500 mt-1">Khi tồn kho ≤ ngưỡng, UI sẽ hiện cảnh báo đỏ. Đặt 0 để tắt.</p>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Ghi chú</label>
+                <textarea
+                  rows={2}
+                  value={materialEditData.notes ?? ''}
+                  onChange={(e) => setMaterialEditData({ ...materialEditData, notes: e.target.value })}
+                  placeholder="VD: Mua ở chợ Đồng Xuân, cửa hàng chú Ba..."
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                  disabled={materialSaving}
+                />
+              </div>
+              <div className="flex items-center gap-2 justify-end pt-2 border-t border-gray-100">
+                <button onClick={() => setMaterialEditOpen(false)} disabled={materialSaving} className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50">Hủy</button>
+                <button onClick={handleSaveMaterial} disabled={materialSaving || !materialEditData.name?.trim()} className="px-3 py-2 text-sm font-bold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:bg-emerald-300">{materialSaving ? 'Đang lưu...' : 'Lưu'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Nhập / Xuất / Điều chỉnh kho */}
+      {receiptModalOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={() => !receiptSaving && setReceiptModalOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">Nhập / Xuất kho</h3>
+              <button onClick={() => setReceiptModalOpen(false)} disabled={receiptSaving} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Nguyên liệu <span className="text-red-500">*</span></label>
+                <select
+                  value={receiptForm.material_id}
+                  onChange={(e) => setReceiptForm({ ...receiptForm, material_id: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                  disabled={receiptSaving}
+                >
+                  {materials.length === 0 && <option value="">-- Chưa có nguyên liệu, thêm trước --</option>}
+                  {materials.map(m => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Loại giao dịch</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['in', 'out', 'adjust'] as MaterialKind[]).map(k => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setReceiptForm({ ...receiptForm, kind: k })}
+                      disabled={receiptSaving}
+                      className={`px-3 py-2 rounded-md border-2 text-sm font-bold transition-colors ${receiptForm.kind === k ? (k === 'in' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : k === 'out' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-purple-500 bg-purple-50 text-purple-700') : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      {kindLabel(k)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {receiptForm.kind === 'adjust' && (
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Hướng điều chỉnh</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setReceiptForm({ ...receiptForm, adjust_sign: 'up' })} className={`px-3 py-2 rounded-md border text-sm font-bold ${receiptForm.adjust_sign === 'up' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'}`}>+ Tăng</button>
+                    <button type="button" onClick={() => setReceiptForm({ ...receiptForm, adjust_sign: 'down' })} className={`px-3 py-2 rounded-md border text-sm font-bold ${receiptForm.adjust_sign === 'down' ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 text-gray-600'}`}>− Giảm</button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Số lượng <span className="text-red-500">*</span></label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={receiptForm.quantity}
+                    onChange={(e) => { setReceiptForm({ ...receiptForm, quantity: e.target.value }); setReceiptError(null); }}
+                    className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    disabled={receiptSaving}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Ngày</label>
+                  <input
+                    type="date"
+                    value={receiptForm.receipt_date}
+                    onChange={(e) => setReceiptForm({ ...receiptForm, receipt_date: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    disabled={receiptSaving}
+                  />
+                </div>
+              </div>
+
+              {receiptForm.kind === 'in' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Đơn giá (VND / đơn vị)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={receiptForm.unit_price}
+                      onChange={(e) => setReceiptForm({ ...receiptForm, unit_price: e.target.value })}
+                      placeholder="VD: 30000"
+                      className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      disabled={receiptSaving}
+                    />
+                    {receiptForm.unit_price && receiptForm.quantity && (
+                      <p className="text-[11px] text-emerald-700 font-medium mt-1">
+                        Tổng: {formatVnd(Math.round(Number(receiptForm.unit_price) * Number(receiptForm.quantity)))}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Nguồn cung / Nhà cung cấp</label>
+                    <input
+                      type="text"
+                      value={receiptForm.supplier}
+                      onChange={(e) => setReceiptForm({ ...receiptForm, supplier: e.target.value })}
+                      placeholder="VD: Chợ Đồng Xuân, cửa hàng chú Ba, Shopee shop XYZ..."
+                      className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      disabled={receiptSaving}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Ghi chú</label>
+                <input
+                  type="text"
+                  value={receiptForm.note}
+                  onChange={(e) => setReceiptForm({ ...receiptForm, note: e.target.value })}
+                  placeholder="Số hóa đơn, lý do điều chỉnh..."
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  disabled={receiptSaving}
+                />
+              </div>
+
+              {receiptError && <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md p-2">{receiptError}</p>}
+
+              <div className="flex items-center gap-2 justify-end pt-2 border-t border-gray-100">
+                <button onClick={() => setReceiptModalOpen(false)} disabled={receiptSaving} className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50">Hủy</button>
+                <button onClick={handleSaveReceipt} disabled={receiptSaving || !receiptForm.material_id || !receiptForm.quantity} className="px-3 py-2 text-sm font-bold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:bg-emerald-300">{receiptSaving ? 'Đang lưu...' : 'Lưu'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: Mời thành viên */}
       {inviteModalOpen && (

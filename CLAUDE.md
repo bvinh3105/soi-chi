@@ -127,6 +127,16 @@ mật khẩu mới (`updateUser({password})`). Cả 2 hàm nằm trong `src/lib/
 `/register`), sidebar sẽ show phần trước `@` của email. Bấm icon bút chì cạnh tên để đổi
 (gọi `updateProfile()` → RLS `"Users update own profile"` cho phép ghi).
 
+**Nguyên liệu / kho (từ 2026-09-22)**: Migration 013 tạo 2 bảng: `raw_materials`
+(định nghĩa từng loại: name, category, unit, min_stock) + `material_receipts` (log
+tất cả nhập/xuất/điều chỉnh, `quantity` signed). Tồn kho hiện tại = `SUM(quantity)`
+tính ở client (`src/lib/materials.ts` → `computeStocks()`) từ 500 receipts gần nhất.
+Nếu về sau > 10K receipts/nguyên liệu thì chuyển sang RPC. UI ở tab "Kho & Sản phẩm"
+với sub-tab "Nguyên liệu" — bấm nút "+ Nguyên liệu" thêm loại mới, "+ Nhập/Xuất"
+tạo receipt. Xóa nguyên liệu là soft delete (`is_active=false`) để giữ lịch sử; xóa
+receipt là hard delete và tồn kho tính lại. Không link với `orders` — quản lý kho
+tay, admin canh `min_stock` để đặt lại. RLS: chỉ admin toàn quyền.
+
 **Landing block editor với Puck (từ 2026-09-21, mở rộng từ 2026-09-20)**: Migration 012 tạo
 bảng `landing_content` (1 row id='home', jsonb `data`). Owner vào `/admin/landing` mở Puck
 editor. Từ 2026-09-21 toàn bộ nội dung landing (Hero, Features, ProcessSteps, CategoriesGrid,
